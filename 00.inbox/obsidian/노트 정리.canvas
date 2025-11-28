@@ -1,0 +1,19 @@
+{
+	"nodes":[
+		{"id":"fd2d32245eef8fe7","type":"group","x":-239,"y":-302,"width":479,"height":182,"color":"5","label":"그룹 1"},
+		{"id":"57d5223a82516c92","type":"file","file":"99. attachment/시청자미디어.pages","x":-241,"y":188,"width":400,"height":400},
+		{"id":"e4d0e4eb212041df","type":"file","file":"00. inbox/obsidian/마크다운 사용법.md","x":-219,"y":-282,"width":139,"height":102,"color":"3"},
+		{"id":"1f54f6893ef42412","type":"file","file":"10. daily notes/2025-09-30.md","x":100,"y":-282,"width":120,"height":142,"color":"2"},
+		{"id":"e44d170e69d50165","type":"link","url":"https://www.youtube.com/watch?v=KA1xjWQsex8","x":-242,"y":-80,"width":325,"height":204},
+		{"id":"0f2181b8c8fed99e","type":"text","text":"메모 만들깅 ㅎㅅㅎ","x":100,"y":-76,"width":160,"height":176},
+		{"id":"97e0152b7db4b6c1","type":"file","file":"00. inbox/obsidian/마크다운 사용법.md","subpath":"#글머리 기호/숫자기호","x":-680,"y":-276,"width":400,"height":400},
+		{"id":"f53591b2c73c7016","type":"file","file":"00. inbox/obsidian/마크다운 사용법.md","subpath":"#볼드 이탤릭체","x":-680,"y":160,"width":400,"height":400},
+		{"id":"572b9563b62bd9a8","type":"file","file":"99. attachment/6. 자기소개서 항목.pdf","x":-680,"y":588,"width":400,"height":400},
+		{"id":"8ac82ea9436f20c8","type":"link","url":"https://www.inflearn.com/roadmaps/11449","x":260,"y":188,"width":400,"height":400}
+	],
+	"edges":[
+		{"id":"ea54e0669cbb8dfc","fromNode":"e4d0e4eb212041df","fromSide":"right","toNode":"1f54f6893ef42412","toSide":"left","label":"연결"},
+		{"id":"1e2d7ccaa158b803","fromNode":"572b9563b62bd9a8","fromSide":"right","toNode":"57d5223a82516c92","toSide":"bottom"},
+		{"id":"c4f93e0c67f8b22f","fromNode":"e44d170e69d50165","fromSide":"bottom","toNode":"8ac82ea9436f20c8","toSide":"left"}
+	]
+}
