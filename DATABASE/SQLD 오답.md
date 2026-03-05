@@ -9,7 +9,7 @@
 - DELETE, TRUNCATE, DROP 명령을 비교한 것으로 옳은 것은?
 	- DROP, TRUNCATE는 DDL이고 DELETE 는 DML이다.
 	- DROP, TRUNCATE는 테이블 자체를 삭제하고 DELETE 는 테이블 자체는 남아있다.
-	- DELETE FROM 테이블;과 TRUNCATE TABLE 테이블;의 결과 행은 다르다.
+	- DELETE FROM 테이블;과 TRUNCATE TABLE 테이블; 의 결과 행은 다르다.
 	- DELETE는 ROLLBACK이 필요하다.
 	
 	- 옳은 것은 1번.
@@ -468,7 +468,7 @@
 	- EXISTS: 서브쿼리 결과 존재 여부
 		- WHERE EXISTS (SELECT 1 FROM ....) 
 		- TRUE/FALSE 판단
-
+- ![[스크린샷 2026-03-05 오후 2.56.50.png]]
 
 
 
