@@ -16,7 +16,7 @@
 	- DELETE는 DML로 ROLLBACK이 가능하며 실행 시 테이블 자체는 남아있음
 	- TRUNCATE는 DDL로 ROLLBACK이 불가하며, 실행 시 테이블을 초기 상태로 되돌린다. (테이블 구조 자체는 남아있음)
 	- DROP은 DDL로 ROLLBACK도 불가능하고 테이블 구조 자체를 삭제한다.
-- 다음 중 ERD(Entity Relationship Diagram)에서 관계의 구성 요소가 아닌 것은?
+- <mark style="background: #FFB8EBA6;">다음 중 ERD(Entity Relationship Diagram)에서 관계의 구성 요소가 아닌 것은?</mark>
 	- membership 관계 이름
 	- optionality 관계 선택성
 	- attribute 속성
@@ -254,7 +254,7 @@
 - DENSE_RANK()
 	- 동일한 값에 동일 순위를 부여하고, 그 다음 순위를 건너뛰지 않는다
 	- RANK()와의 차이점
-- 데이터 모델링의 세 가지 중요 개념
+- <mark style="background: #FFB8EBA6;">데이터 모델링의 세 가지 중요 개념</mark>
 	- 업무가 관여하는 어떤 것( thing )
 	- 업무가 관여하는 어떤 것의 성격( attributes )
 	- 업무가 관여하는 어떤 것의 관계 ( relationships )
@@ -400,7 +400,7 @@
 	- VIEW는 실제 데이터를 가지고 있지 않다.
 	- 서브쿼리는 ORDER BY 절에 사용할 수 있다.
 - ACESS SEUBQUERY
-	- 서브쿼리의 종류 중에서 서브쿼리가 메인쿼리의 제공자 역할을 하고 메인쿼리의 값이 서브쿼리에 주입되지 않는 유형
+	- 서브쿼리의 종류 중에서 서브쿼리가 메인쿼리의 <mark style="background: #FF5582A6;">제공자 역할</mark>을 하고 메인쿼리의 값이 서브쿼리에 주입되지 않는 유형
 - SQL을 ANSI 방식으로 변경한 것
 	- SELECT * FROM TAB1, TAB2 ORDER BY 1;
 	- FROM TAB1, TAB2만 있고 별도의 조인 조건은 없으므로 카티션 곱이 발생하며, 이는 CROSS JOIN으로 표현할 수 있다.
@@ -469,8 +469,9 @@
 		- WHERE EXISTS (SELECT 1 FROM ....) 
 		- TRUE/FALSE 판단
 - ![[스크린샷 2026-03-05 오후 2.56.50.png]]
-
-
+![[스크린샷 2026-03-06 오후 1.57.22.png]]
+- SELECT TRIM
+	- TRIM은 별도의 설정을 하지 않으면 앞 뒤 공백을 제거하므로 앞 뒤 공백을 제거한 값을 출력한다.
 
 
 
@@ -585,4 +586,20 @@
 - NULL
 	- NULL은 비교 불가
 	- NULL 관련 연산 결과는 NULL
-- 
+- 집합 연산자 기본 구조
+	- 집합 연산자는 두 SELECT 결과를 행 단위 집합(set)으로 결합함
+		- UNION: 합집합, 중복 제거
+		- UNION ALL: 합집합, 중복 유지
+		- INTERSECT: 교집합, 중복 제거
+		- MINUS: 차집합, 중복 제거
+	- 실행 가능 여부 판단(가장 먼저 확인할 것)
+		- 컬럼 개수 동일
+		- 컬럼 위치별 데이터 타입 호환
+		- 컬럼 이름은 중요하지 않음
+- 엔터티의 명명 기준
+	- 엔터티는 업무 용어 기반의 단수형 명사를 사용하는 것이 원칙
+- 개념적 모델링 단계
+	- 업무 엔터티 식별
+	- 속성 추출
+	- 관계 설정
+		- 인덱스는 물리 모델링에서 다루며, 개념 모델에서는 등장하지 않음
