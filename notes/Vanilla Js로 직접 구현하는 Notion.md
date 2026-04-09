@@ -1,0 +1,146 @@
+## 바닐라 자바스크립트
+- 아무것도 섞지 않은 순수한 자바스크립트 그 자체
+- jQuery, React, Vue 같은 외부 도구(프레임워크, 라이브러리)를 전혀 쓰지 않고, 브라우저가 기본으로 제공하는 기능만 사용해서 코드를 짜는 것
+- 프레임워크
+	- 전체적인 흐름을 제어하는 틀, 개발자는 그 규칙 안에서 코드를 작성해야 함
+- 라이브러리
+	- 개발자가 필요할 때 꺼내쓰는 도구, 주도권이 개발자에게 있음
+- jQuery VS React
+	- jQuery: 라이브러리. 브라우저 간 문법차이 해결, DOM 요소를 직접 선택해서 수정하는 직접 명령 방식
+	- React: 프레임워크, 라이브러리. 복잡한 UI를 효율적으로 관리하는 것, 화면 전체를 다시 그리지 않고 바뀐 부분만 계산해서 변경, UI를 독립된 부품 단위로 쪼개어 개발. 데이터 상태에 따라 화면이 자동으로 동기화
+- JSon
+	- 데이터를 주고받기 위한 텍스트 기반 표준 양식
+	- 언어에 종속되지 않음
+	- "key" : "value" 쌍으로 구성
+	- JSON.stringify(obj): 객체 → 문자열 (전송용)
+    - JSON.parse(string): 문자열 → 객체 (사용용)
+- 바닐라 자바스크립트의 장점
+	- 외부 도구를 불러올 필요가 없어서 속도가 압도적으로 빠름
+	- 어떤 환경에서든 즉시 돌아가는, 환경의 제약이 없음
+## HTML 문서의 시작과 Head의 모든 요소
+- < !DOCTYPE html >
+	- html5 표준 선언
+	- 호환 모드 방지
+	- css/레이아웃 깨짐 예방
+	- 항상 문서 최상단
+- < head >
+	- 문서 전체가 제대로 표시되기 위한 준비 단계
+	- 문자 인코딩을 지정해 화면 깨짐 방지
+	- 뷰포트를 이용해 모바일 대응, 확대/ 잘림 방지
+	- 제목으로 문서 정체성 부여
+	- 최적화된 글꼴과 스타일시트를 불러와 보기좋은 화면
+	- 단순 꾸밈이 아닌 브라우저 지침서
+- < meta name = "viewport" content = "" / >
+	- 모바일 환경에서 화면 크기와 배율을 맞추는 데 꼭 필요
+- < title > </ title >
+	- 브라우저 탭 제목
+	- 북마크와 히스토리에도 저장
+	- 문서의 정체성 표시 + 단순 장식이 아님
+- < link rel = "" href />
+## Body 레이아웃과 사이드바 뼈대
+- < body > </ body >
+	- 실제 화면에 보이는 모든 요소의 시작점
+- < div class = "app" > 
+	- 앱 전체 컨테이너
+	- 이 div는 앱 전체를 감싸는 최상위 레이아웃 박스로 사용됨
+	- css에서 .app 요소를 그리드 레이아웃으로 설정해 두었기 때문에 안쪽에 사이드바와 네비게이션 바, 본문이 그리드의 각 칸에 알맞게 배치됨
+- < aside id= "sidebar" class= "sidebar" >
+	- aside는 문서 보조 영역을 표현할 때 쓰는 의미론적 태그
+	- 메인 컨텐츠는 아니지만 탐색, 관리 필수 영역
+	- id= "sidebar"는 자바스크립트가 이 영역을 빠르게 찾을 수 있도록 해줌
+	- class= "sidebar"는 css에서 스타일을 적용하게 함
+	- 두 속성을 함께 쓰는 이유는 id는 한 문서에 하나뿐인 특정 요소를 지칭하기 위한 고유 식별자이고, class는 여러 요소에 공통적으로 적용할 수 있는 디자인 규칙을 위한 이름
+- < div class= "inner" >
+	- 사이드 바 내부 래퍼
+	- 콘텐츠를 스크롤 가능한 영여긍로 묶음
+	- css에서 padding + overflow 규칙 적용
+	- 사이드 바 내용이 많아지면 스크롤바 생성
+- < button id="collapseBtn" class="collapse=btn" title="collapse" > << < /button >
+	- 사이드 바 토글 버튼(접기/펼치기)
+	- id는 자바스크립트 이벤트 연결용
+	- class는 버튼 스타일 적용
+	- title은 마우스 오버 시 툴팁으로 표시되는 설명 (버튼 용도 설명으로 접근성 강화)
+	- 내용 << 는 왼쪽으로 접힘을 직관적으로 표시
+- < div class= "user-box" >
+	- < div class = "avatar" > < /div>
+	- < div class = "user-meta" > 
+		- < strong> Guest < / strong > < small > guest@example.com < /small> < /div>
+		- 사용자 정보를 표시하는 박스
+		- 아바타 + 이름 + 이메일을 한 덩어리로 그룹화
+	- 사이드 바 상단에서 계정 정보표시
+- < div class="nav-items" >
+	- 사이드바 상단 기능 버튼 모음
+	- 여러 버튼을 세로로 그룹화
+	- item 각각이 하나의 동작 단위 버튼
+	- < div class= "item" id= "actionSearch">
+		- < span > search < /span>
+		- 검색버튼
+		- 돋보기 아이콘 + search 텍스트
+		- < span class ="right >
+			- < span class ="kbd"> 아이콘 < /span>
+			- < span class ="kbd"> K < /span>
+			- 오른쪽에는 command K 단축키를 알려주는 작은 박스
+			- 이 작은 박스를 css 로 스타일링 해 키보드 단축키처럼 보이게 함
+	- < div class= "item" id= "actionSettings">
+		- 설정 버튼 
+		- < span > Settings < /span>
+	- < div class= "item" id= "actionSettings">
+		- 새 페이지 버튼
+		- < span > New pages < /span>
+	- 각 버튼에 id를 부여해 JS 클릭 이벤트 연결 가능
+- < div class= "Group-title"> All pages < /div>
+	- 문서 목록을 표시하는 구간
+	- All pages라는 그룹 타이틀
+- < div id= "docListRoot" class="doc-list">  < /div>
+	- 비어있는 div 태그
+	- Js로 문서 트리 렌더링 자리
+	- 사용자가 만든 페이지들 계층 구조로 표시되는 핵심 영역
+- < div  class="nav-items">
+	- < div  class="item" id= "actionAddPages >
+		- < span > Add a page < /span>
+			- 새로운 루트 페이지를 추가할 수 있게 해줌
+- < div  class="nav-items">
+	- < div  class="item" id= "trashTrigger" >
+		- < span > Trash < /span >
+		- 휴지통 열기 버튼
+		- 삭제 문서 진입점
+		- 문서 삭제 시 즉시 제거 X -> 휴지통으로 이동
+		- 사용자가 원하면 복원 가능
+		- 사이드 바에 안전장치 역할로 배치
+- < div id ="resizeHandle" class= "resize-handle" title="Drag to resize / Double click to reset" > < /div >
+	- 사이드 바 폭 조절 핸들
+	- JS에서 드래그 이벤트 감지 -> 사이드 바 크기 변경
+	- title 속성은 마우스를 올리면 드래그 조절, 더블클릭 초기화 설명 보여주어 안내
+	- CSS 얇은 세로줄. 약 4px -> 사이드 바 본문 경계선
+- < button id ="sidebarPeekBtn" class="peek-btn" title="Open sidebar" > = < /button>
+	- 사이드 바 다시 열기 버튼
+	- 햄버거 아이콘 사용
+	- 사이드바 접힘 상태에서만 표시
+	- 모바일 좁은 화면에서는 사이드바가 자동으로 접히기 때문에 이 버튼이 사이드바에 유일한 진입점
+	- 토글 버튼 덕분에 모바일 대응성 + 사용성 향상
+## 사이드 바 옆에 붙어있는 네비게이션 바와 메인 에디터
+- 상단에 위치해 있는 네비게이션 바는 현재 페이지 경로를 알려주고 오른쪽에는 즐겨찾기나 세 하위 페이지 같은 중요한 버튼들을 모아둔 공간
+- 메인 컨텐츠는 우리가 작성할 문서가 실제로 보여지는 에디터 영역
+- < header class = "navbar" > 
+	- 상단 네비게이션 바
+	- header태그는 문서 머리글, 네비게이션이라는 것을 알려주는 의미론적 태그
+	- navbar클래스로 css에서 배경색, 높이, 정렬 스타일 구현
+	- 항상 화면 상단 고정
+- < main >
+	- 문서 주요 콘텐츠 영역
+	- 의미론적 태그 -> 본문의 핵심 의미 표시
+	- 사이드바/ 헤더와 구분되는 메인 컨텐츠 담당
+	- 안에 div class "doc-canvas"로 본문 컨테이너
+		- 가운데 정렬 + 최대 폭 제한 -> 가독성 확보, 내부에 문서헤더, 본문 내용 순서로 배치
+		- 안에 div class "doc-header"로 문서의 헤더 
+		- 아이콘을 바꿀 수 있는 버튼
+		- 타이틀 랩 클래스
+			- 문서 제목, 메타 정보 영역
+			- 
+
+
+
+
+
+
+
