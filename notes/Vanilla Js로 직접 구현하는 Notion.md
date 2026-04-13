@@ -136,7 +136,207 @@
 		- 아이콘을 바꿀 수 있는 버튼
 		- 타이틀 랩 클래스
 			- 문서 제목, 메타 정보 영역
-			- 
+## HTML 구조의 아래쪽 오버레이 요소들- 휴지통 팝오버, 모달, 토스트보조 UI 정리
+- 이 부분은 평소에는 화면에 보이지 않지만 특정 버튼을 누르거나 동작이 발생했을 때 화면 위에 떠서 사용자와 상호작용하는 중요한 요소들
+- 
+
+# CSS
+## CSS 디자인 토큰과 다크 테마 변수
+- :root
+	- 문서 최상위 요소 html
+	- 여기에 css 변수 정의하면 문서 어디서든 재사용 가능
+	- 테마/ 색상 변경 시 한 줄만 수정해도 앱 전체 반영
+- --변수
+	- 값을 그냥 문자열로 저장
+	- 실제로 사용할 때 .box{ color : var(--color); }
+	- color 속성 덕분에 색상으로 인식
+	- --bg = 색
+		- 앱 전체에 일관된 색상 적용
+	- --pane, --panel2, --panel3
+		- 패널 배경 단계 구분
+		- 사이드 바, 네비게이션 바, 팝 오버 등이 다른 색을 가지게해서 명도 차이로 층 차감
+	- --text
+		- 일반 텍스트 색상
+	- --muted
+		- 덜 중요하 설명 텍스트 색상
+		- 주요색, 보조색 분리 -> 정보 계층 시각적 표현
+	- --primary
+		- 강조 색 -> 버튼, 선택 항목에 사용
+	- --border
+		- 패널 구분선 색상
+	- --danger
+		- 삭제, 경고 색상
+	- --success
+		- 완료 성공 색상
+		- 직관적 색상 체계 -> 사용자 경험 강화
+	- --shadow
+		- 공통 그림자 규칙
+			- 0 10px 30px (x=0, y=10px Blur=30px)
+		- 반투명 검정 -> 입체감/ 부유감
+	- --radius
+		- 공통 border-radius
+		- 버튼 박스 패널 모두 적용
+		- 일관된 둥근 스타일 유지
+	- --sidebar-w
+		- 사이드바 기본 너비
+	- --navbar-h
+		- 네비게이션 바 높이
+- 레이어 
+	- --z-sidebar:1000;
+		- 사이드 바 레이어
+	- --z-dropdown:10150;
+		- 드롭다운 레이어
+	- --z-toast:10190;
+		- 가장 위에 떠야하는 토스트 알림
+	- 요소 별 레이어 우선 순위 변수화
+	- 겹치는 UI충돌시 중앙에서 쉽게 조정가능
+## Reset 스타일과 Body 기본설정
+- *
+	- 모든 요소에 적용한다는 의미
+	- * { box-sizing:border-box; }
+- content-box
+	- 기본적으로 css의 박스모델은 content-box
+	- content-box는 padding/border가 width밖으로 더해짐
+	- 따라서 width를 100px로 정하면 실제 크기가 100px보다 커짐
+	- 이를 막기위해서 최근에는 border-box가 선호됨
+	- border-box는 padding/border가 width안에 포함
+- html,body{ height:100%; }
+- body{ margin:0 }
+	- 기본적으로 8px의 여백을 가짐
+	- 이를 초기화해서 레이아웃 틀어짐 방지, 정확한 레이아웃 기반 확보
+- transition: background-color 0.25s ease, color 0.25s ease;
+	- 테마 전환 시 색상 부드럽게 페이드
+	- 라이트 다크 전환 시 번쩍임 방지
+	- 0.25초 자연스러운 변화 -> 사용자 경험 향상
+## APP 컨테이너와 Grid 레이아웃 구조
+- .app
+	- 최상위 컨테이너 < div class = "app" >
+	- display: gird; -? 2차원 레이아웃
+	- flexbox = 1차원 정렬/ 한 방향 정렬
+	- gird = 2차원 레이아웃, 행+열 모두 적합
+	- 구조: 2열(사이드바/메인) x 2행(네비게이션/본문)
+	- grid사용 -> 자연스럽고 직관적 레이아웃
+	- grid-template-columns: var(--sidebar-w) 1fr;
+			- 너비 --sidebar-w
+			- 2열 구조
+			- 첫 열은 사이드바, 둘째 열은 남은 공간 전부( 1fr )
+	- grid-template-rows : var(--navbar-h) 1fr;
+		- 2행 구조
+		- 첫 행은 네비게이션 바, 둘째 행은 본문 영역
+- .sidebar
+	- grid의 첫 번째 열 전체 차지
+	- grid-column: 1;
+		- 첫 번째 열에 배치
+		- 첫 번째 열 고정
+	- grid-row: 1 / span 2;
+		- grid-row: 시작행 / span 차지할 칸수
+		- 칸수의 크기는 grid-template-rows : var(--navbar-h) 1fr; 여기서 정한 크기를 따름
+		- 1행부터 2행까지 세로로 확장
+		- 첫 번째 행에서 시작해서 2칸 차지
+		- 결과 -> 네비게이션 바 아래까지 이어져 화면 왼쪽 전체 차지
+## peek 버튼과 상단 navbar 스타일링
+- peek버튼은 모바일이나 작은 화면에서 사이드바를 다시 열 수 있는 손잡이 역할
+- navbar는 현재 페이지 경로, 즐겨찾기, 검색, 설정 같은 주요 인터랙션을 모아놓은 영역
+- .peek-btn
+	- position: fixed;
+		- 스크롤해도 항상 같은 자리 유지
+	- 기본 상태: display:none; -> 숨김
+- .sidebar .is-collapsed ~ .peek-btn { display: grid ;}
+	- ~는 일반 형제 선택자
+		- 같은 부모 안에서 뒤에 오는 형제 요소 선택
+		- 즉, .is-collapsed 뒤에 오는 .peek-btn 선택
+		- ~은 두에 오는 모든 형제를 선택하고 +는 바로 다음 형제만 선택
+	- 사이드 바가 접히면 peek-btn 표시
+	- sidebar안에서 .is-collapsed 클래스가 있을 때 뒤에 오는 .peek-btn에 display: grid 적용
+- .navbar
+	- grid-column: 2;
+		- grid 2열 
+	- grid-row: 1;
+		- 1행 차지
+	- position: sticky;
+	- top: 0;
+		- 스크롤해도 항상 상단에 고정
+- .breadcrumbs
+	- 현재 페이지 경로 텍스트
+	-  letter-spacing: 0.2px 으로 글자 간격 벌려 가독성 높임
+## main과 doc canvas - 본문을 담는 그릇
+- 화면 오른쪽의 본문 영역을 실제로 감싸는 메인 컨테이너
+- 그 안에서 문서를 보기 좋게 중앙에 배치하는 Doc canvas
+- main
+	- grid-column:2;
+		- grid 2열 2행 차지(본문 영역)
+		- 1열 사이드바 1행 네비게이션의 나머지 칸이 본문 영역
+	- over-flow: auto;
+		- 사이드바 네비게이션 바 항상 고정 유지
+		- 본문만 독립 스크롤
+		- 사용자는 항상 같은 탐색 위치 유지
+		- grid로 큰 틀 분리 -> main 하나만 스크롤 컨테이너여도 레이아웃 전체가 자연스럽게 협력
+- .doc-canvas
+	- 본문 내용을 가운데로 정렬하는 역할
+	- max-width: 940px; -> 넓은 화면에서도 글줄 제한
+	- margin: auto; -> 좌우 중앙 배치
+	- 줄이 너무 길면 가독성 저하, 피로 누적
+	- 적절한 폭 제한으로 읽기 편한 문서 레이아웃
+## user box와 action items
+- 유저 박스는와 액션 아이템은 사이드바의 첫 인상을 좌우하는 중요한 요소들 
+- .user-box
+	- display : flex;
+		- 아바타 + 사용자 정보 가로 배치
+	- align-items: center;
+		- 수직 중앙 정렬
+	- gap: 10px 
+		- 아바타와 텍스트 간의 간격 확보
+	- .avatar
+		- 사용자의 프로필 이미지를 대체하는 박스
+		- box-shadow로 살짝 떠 있는 느낌 -> 사용자 포인트 강조
+- .user.meta
+	- display: flex;
+	- flex-direction: column;
+		- 이름+이메일 세로 정렬
+- .nav-items
+	- 사이드 바 액션 버튼 컨테이너
+	- 아이템들을 묶어주는 역할
+## document Tree 스타일과 계층 구조
+- 계층적인 문서 구조
+- .doc-list
+	- 루트 문서들을 감싸는 박스
+	- 내부에 .tree-row요소가 차례대로 쌓임
+- .tree-row
+	- 문서 하나를 나타내는 줄
+	- display: flex; align-items: center; 
+		- 아이콘 제목 버튼 가로 정렬
+- .tree-row.dragover-top/bottom/inside 각각 정의
+	- 드래그 위치 시각적 피드백 제공
+	- 안정적 문서 이동 경험
+- .children
+	- 트리 구조 핵심 컨테이너
+	- 시각적 효과: 트리가 계층적으로 자라남
+	- 사용자 인식: 상위-하위 관계 직관적 파악 가능
+## Dropdown 메뉴와 popover 스타일링
+- .dropdown-btn
+	- 트리 행 오른쪽 끝 ... 버튼
+	- hover시 배경+글자 색 변화 -> 지금 활성화 기능 피드백 제공
+- .dropdown-menu
+	- body에 직접 붙는 떠 있는 메뉴 박스(포털)
+	- position: fixed; -> 화면 기준 좌표 고정
+- .popover
+	- 고정 위치로 나타나는 패널
+	- 드롭다운보다 넓은 폭
+	- 배경 + 테두리 + border-radius+그림자
+	- 드롭다운과 디자인 통일
+	- 차이점은 더 넓은 공간 + 다양한 콘텐츠 수용 가능
+## 화면 전체를 덮는 overlay UI 스타일링
+
+
+
+
+
+
+
+
+
+
+
 
 
 
