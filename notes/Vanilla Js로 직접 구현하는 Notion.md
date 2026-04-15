@@ -514,7 +514,154 @@
 
 # 본문 편집기와 상태 동기화(자바스크립트)
 ## 앱 상태 설계 - STORAGE_KEY, defaultDocs, state
-- 
+- const STORAGE_KEY = " "
+	- 저장키 설정
+	- 우리 앱은 사용자가 만든 페이지들을 브라우저에 저장해둬야 다시 열었을 때 그대로 복원할 수 있음
+	- 브라우저는 localStorage 라는 작은 키 값 저장소 제공
+	- 여기서 키는 우리 앱만의 라벨 -> 앱 고유 식별자
+		- 프로젝트 명과 버전을 조합한 고유 문자열을 상수로 고정
+		- 다른 앱과 라벨 충돌 방지
+	- 절대 바뀌면 안되는 값이라 const로 선언
+- const defaultDocs = [ ]
+	- 기본 문서 데이터
+	- 앱 첫 실행 시 연습용 페이지 제공
+	- 사용자는 구조 이해 + 즉시 클릭과 편집 가능
+	- 각 문서 속성 { } -> 첫 번째 객체
+		- id: "welcome" -> 개발자 이해용 고정 id, 고유 식별자
+			- 실제 생성 로직에서는 UID로 임의 아이디를 만들지만 기본 데이터는 이해하기 쉬운 이름형 아이디를 써도 무방
+		- title: 문서 제목
+		- icon: 아이콘/ 이미지
+		- parentId: null -> 부모 관계 표시
+			- null로 최상위 문서 임을 표시(root)
+		- content: < p> 첫 문서 - < /p>
+			- 간단 안내문
+		- starred: false -> 별표, 즐겨찾기 표시
+		- order: 0 -> 형제 순서
+			- 0은 같은 형제들 중 첫 번째 순서
+		- createdAt: Date.now() - 86400000
+			- Date.now에서 밀리초를 빼서 어제 만들고 1시간 전에 수정한 것처럼 보이게 하는 연출
+		- updateAt: Date.now() - 3600000
+	- const 사용 이유
+		- 이 변수 자체를 다른 배열로 바꾸지 않는다는 약속
+		- 내부 원소는 상태 로딩 후 복사본으로 사용
+		- 언제든 초기 상태로 복원 가능
+	- { } -> 두 번째 객체
+		- id: "guides"
+			- guides 페이지 
+		- parentId: null -> 부모 관계 표시
+			- null로 최상위 문서 임을 표시(root)
+		- starred: true -> 별표, 즐겨찾기에도 나타남
+		- content: "< h2 > guide index " < /h2 >
+			- H2와 UI 조합, 간단한 목차 포함
+			- 자식 페이지들과 연결감 형성
+		- order: 1;
+	- { } -> 세 번째 객체
+		- id: "setip"
+		- parentId: "guides" -> guides의 자식 페이지
+			- 부모 자식 관계는 단지 문자열 ID로 연결함
+			- 별도의 트리 구조 불필요
+- const state = { }
+	- 실행 중 상태를 담는 state 그릇
+	- 화면은 state를 참고해서 그려지고 사용자의 행동은 state만 변경함
+	- 이렇게 단방향으로 정하면 언제든 무엇 때문에 이런 화면이 되었나를 스테이트 변화 추적만으로 알 수 있음
+	- state는 앱 전역에서 공유되는 단일 상태 컨테이너
+	- { docs: [] ;
+		- 살아있는 모든 문서 리스트 배열
+		- 초기 부팅 때 default docs 복사해서 채움
+		- 이후에는 CRUD 동작이 docs 수정
+			- create, read, update, delete
+	- trash: [];
+		- 휴지통 역할을 하는 프로퍼티
+		- 빈 배열로 설정
+		- 삭제는 진짜 삭제가 아니라 이 배열로 이동시키는 방식으로 구현해 복원 기능 지원
+	- expanded: { };
+		- expanded 프로퍼티의 객체는 펼쳐진 트리 노드들을 기억 상태 저장
+		- 키 = 문서 id/ 값 = true
+		- 리렌더 후에도 열림 상태 유지
+	- activeId: null;
+		- 현재 표시 중인 문서의 id
+		- 초기값은 null
+		- 라우팅 시 갱신
+		- 체목 입력칸, 브레드크럼, 에디터 -> activeId 기준 출력
+	- isMobile: matchMedia("(max-width:768px)").matches,
+		- matchMedia는 브라우저에게 화면 너비가 최대 768px인 상태를 감시해줘라고 요청하는 함수 -> 조건이 바뀌는 순간 미리 작성해 둔 자바스크립트 함수 실행
+		- .maches는 그 요청에 대한 현재 결과를 확인 -> true/ false로 값 반환
+	- };
+## localStorage와 UID로 상태 보존
+- 새로고침 후에도 사용자가 만든 문서가 사라지지않고 유지되는 것이 핵심
+- localStorage
+	- 앱이 일종의 기억력을 가져야하는데 그 기억을 담당하는 것
+	- 제한: 문자열만 저장 가능 -> 자바스크립트의 객체와 배열을 그대로 담을 수 없음
+	- 해결: 저장 = JSON.stringify(문자화) / 불러오기 = JSON.parse(객체화)
+	- load/ save 함수가 이 과정 관리
+- function load( ){}
+	- 앱이 시작되면 가장 먼저 실행되는 함수
+	- const raw = localStorage.getItem(STORAGE_KEY);
+		- getItem(): 데이터를 가져오겠다는 자바스크립트의 약속된 명령어
+		- 앞서 정의한 STORAGE_KEY이름의 데이터 가져옴
+		- 없으면 null 반환
+		- if (!raw) {}
+			- 조건문으로 초기화 처리
+			- state.docs = defaultDocs.slice( );
+				- 기본 문서 복사해 state.Docs에 넣음
+				- slice를 쓰는 이유는 원본을 보호하기 위해서
+				- 그냥 =으로 대입하면 원본과 복사본이 한 몸이 됨(참조)
+				- slice를 통해 원본의 내용물을 똑같이 베껴서 새로운 독립적 배열 생성 -> 초기 데이터 불변
+			- state.trash = [];
+				- trash 상태는 항상 빈 배열로 시작
+			- return;
+	- const data = {  };
+		- 데이터가 있는 경우 
+		- JSON. parse( raw ); 
+			- 문자열을 다시 객체로 복원
+		- state.docs = data.docs || defaultDocs.slice();
+		- state.trash = data.trash || [];
+		- state.expanded = data.expanded || {}
+		- state.activeId = data.activeId || null;
+			- 복원된 객체 속성들을 state에 채움
+			- ||( OR 연산자 )는 해당 필드가 없는 경우 기본값을 사용하라는 의미 
+	- catch(e){ }
+		- 안전망
+		- 예기치 못한 에러가 발생한 경우 대비
+		- console.warn( );
+		- state.docs = defaultDocs.slice();
+		- state.trash = [];
+		- 콘솔에 경고 문구 출력 -> 기본 문서만 로드
+		- 저장소가 망가져도 앱은 정상적으로 돌아갈 수 있게함
+- function save( ){}
+	- save 함수
+	- const data = {
+	- docs: state.docs,
+	- trash: state.trash,
+	- expanded: state.expanded,
+	- activeId: state.activeId,
+	- };
+	- 현재 state에 담긴 데이터를 하나의 객체 data 객체로 모음
+	- 문서 목록, 휴지통, 펼친 노드, activeId 모두 포함
+	- 이렇게 한 덩어리로 저장해서 일관성을 보장함
+	- 스냅샷 방식 -> 일부만 저장되는 불일치 방지
+	- localStorage.setItem( STORAGE_KEY, JSON.stringify(data));
+		- 마지막 단계로 setItem 호출
+		- data 객체를 문자열로 변환하여 localStorage에 저장
+		- 변환 이유는 객체를 안전하게 문자열로 저장하기 위해 
+- function uid( ){ }
+	- 새로운 문서를 만들 때 필요한 임시 아이디를 생성하는 함수
+	- return Math.random( ).toString(36).slice(2, 11);
+		- Math.random()으로 0~1의 난수 반환
+		- toString(36)으로 36진수 반환 -> 숫자 알파벳 혼합 문자열
+		- slice(2, 11) -> 앞에 불필요한 0. 제거 후 9자리 추출
+		- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
