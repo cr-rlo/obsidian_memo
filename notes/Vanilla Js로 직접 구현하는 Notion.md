@@ -326,6 +326,199 @@
 	- 드롭다운과 디자인 통일
 	- 차이점은 더 넓은 공간 + 다양한 콘텐츠 수용 가능
 ## 화면 전체를 덮는 overlay UI 스타일링
+- .overlay
+	- 화면 전체 덮개 컨테이너
+	- positon: fixed; inset: 0; -> 전체 화면 고정 덮개
+		- inset은 top, right, bottom, left를 한번에 설정하는 단축 속성
+		- inset: 0;은 상하좌우 전부 0;
+	- display: none;
+		- 열릴 때 display: gird; place-items:; center
+			- 모달 창 정 중앙 배치
+## settings 모달과 환경 제어 UI 디자인
+- .settings-header
+	- 설정 모달 최상단 헤더
+	- display: flex; justify-content: space-between;
+		- display: flex는 기본값 즉 가로로 나란히배치
+		- justify-content: space-between;는 양끝에 붙이고 나머지 공간 균등하게 나눔
+		- 좌우 배치 , 세로 중앙 정렬
+		- 왼쪽에는 제목, 오른쪽에는 닫기 버튼
+- .settings-modal .settings-grid
+	- 모달 안의 그리드 배치
+	- display: grid;
+		- 설정 항목 2열 레이아웃
+	- grid-template-columns: 1fr auto;
+		- 왼쪽 영역 설명 영역, 오른쪽 컨트롤 요소 영역
+		- 1번열 남은 공간 전부차지
+		- 2번열 안에 있는 내용물 크기만큼 차지
+	- align-items:center;
+		- 열 안의 아이템들을 세로가운데 정렬
+- .settings-modal .settings-row
+	- 설정 항목 한 줄 
+	- display: contents;
+		- 불필요한 래퍼 박스 없애기 => 자식 요소 태그들만 남음
+		- 자식들이 직접 flex, grid의 영향을 받게 됨
+		- 내부 요소 (label, 버튼 등) grid cell에 직접 배치
+		- display: contents; 가 없으면 래퍼가 grid cell을 차지해서 내부요소가 안에 갖히게 됨 
+		- display: contents;가 있으면 래퍼가 사라지면서 내부요소가 직접 grid에 배치됨
+- .switch
+	- 테마 전환 UI 컴포넌트
+	- display: inline- flex;
+		- 체크박스+레이블 한 줄 배치
+		- flex vs inline-flex;
+			- flex는 블록처럼 한 줄 전체 차지
+			- inline-flex;는 내용물 크기만큼만 차지
+## confirm 모달, Toast 알림
+- confirm 모달 
+	- 사용자가 정말로 진행할지 묻는 역할
+	- 삭제 같은 행동을 하기 전에 한 번 더 묻는 안전장치 역할
+- Toast 알림
+	- 짧게 정보를 알려주는 알람
+	- 작은 피드백을 빠르게 보여주는 역할
+- .modal-overlay
+	- 화면 전체를 덮는 배경
+	- position: fixed; inset:0;
+		- 뷰포트 완전 가림
+	- background: rgba(0,0,0,0.5);
+		- 반투명 검정, 모달 집중 유도
+	- display:none;
+		- 기본값은 보이지 않게
+		- 자바스크립트로 열릴 때 display: flex;
+	- align-items: center; justify-content: center;
+		- 모달 정중앙 배치
+- .modal
+	- 실제 확인 창(콘텐츠 박스)
+	- width: min(420px, 90vw)
+			- 크기 max-width: 420px, 좁은 화면 90%까지 축소
+- toasts
+	- 화면 우측 하단 알림 컨테이너
+	- position: fixed;
+		- 브라우저 창 오른쪽 아래 항상 고정
+	- display: flex; flex-direction: column;
+		- 알림 여러 개 일 때 세로 차곡차곡 쌓임
+## 에디터 헤더 툴바 본문 스타일
+- 문서 편집기 영역
+- 에디터 영역
+	- 문서 아이콘과 제목을 담는 컨테이너
+	- 글꼴 스타일과 블록 포맷을 바꿀 수 있는 툴바
+	- 실제 글을 작성하는 본문 편집 영역
+	- 메타 정보를 표시하는 작은 텍스트
+- .doc-header
+	- 아이콘+제목 헤더
+	- 아이콘과 제목이 나란히 배치되는 컨테이너
+	- display:flex;
+		- 가로 배치
+	- align-items: center;
+		- 아이콘 + 입력창 수직 중앙 정렬
+		- 문서 헤더가 깔끔하고 직관적인 레이아웃
+- .title-wrap
+	- 제목 + 메타 정보 컨테이너
+	- flex: 1;
+		- 남은 공간을 전부 차지하라 는 의미
+		-  가로 공간을 유연하게 차지
+	- min-width: 0;
+		- 기본적으로 flex 아이템은 내용물보다 작아질 수 없음
+		- 하지만 이 속성을 통해 내용물 보다 작아질 수 있음
+		- 따라서 텍스트가 길어도 영역 안에서 줄어듦 
+		- 텍스트가 길어도 삐져나오지 않음
+		- 너무 넓게 밀리는 것 방지
+		- 제목 영역이 적절히 확장/ 축소되며 안정적 레이아웃 유지
+- .title-input
+	- 문서 제목 입력창
+	- all: unset;
+		- 브라우저 기본 스타일 제거
+		- 폰트 사이즈와 굵기 설정으로 큼직하고 굵은 제목다운 느낌
+	- border-bottom: dashed transparent;
+		- dashed: 테두리를 점선 형태로 설정
+		- transparent: 테두리의 색상을 투명하게 설정
+		- 평소에는 안보임
+		- focus 시 강조선 나타나 집중 효과
+- .title-input:focus
+	- border-bottom-color: var( );
+	-  focus 시 강조선 나타나 집중 효과
+- .meta
+	- 문서 부가 정보 영역(예: 마지막 수정일)
+	- 필요한 정보를 전달하면서도 본문 흐름 방해 X
+- .toolbar
+	- 포맷팅 도구 상자(굵게, 기울임, 제목, 리스트 등 설정)
+	- positon: sticky; top: 8px;
+		- 스크롤해도 화면 상단 근처에 고정
+	- display: flex; flex-wrap: wrap;
+		- 가로배치
+		- flex-wrap: wrap;은 레이아웃에서 아이템들이 한 줄에 다 들어가지 않을 떄, 다음 줄로 자연스럽게 줄 바꿈
+		- 기본적으로 display: flex;의 아이템들은 가로 너비가 부족하더라도 한 줄에 억지로 구겨넣으려는 성질이 있음(nowrap)
+- .tbtn
+	- 툴바 안에 있는 개별 버튼들
+- .tbtn:hover
+	- hover시 배경 글자색 변화 -> 클릭 가능 피드백 제공
+- .editor
+	- 실제 글 작성 영역
+	- min-height: 600px
+		- 빈 페이지여도 충분한 작업 공간 확보
+		- padding으로 여백 확보, 가독성 확보
+	- transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		- border-color: 트랜지션 대상 속성
+		- 0.15s: 지속 시간
+		- ease: 가속도 곡선 -> 느리게 시작해서 빨라졌다가 다시 느려짐
+			- 가장 자연스러운 가속도 설정
+			- 처음과 끝이 부드럽게 연결됨
+- .editor :where()
+	- :where( )은 .editor안에 있는 특정 요소를 모두 선택한다는 뜻
+	- 특징으로 괄호 안에 무엇을 넣든 CSS우선 순위가 가장 뒤로 밀려난다는 점
+	- 비슷한 속성으로 :is( )가 있는데 이는 우선순위를 계산할 때 괄호 안에 나열된 것들 중에서 가장 높은 점수를 가진(우선순위를 가진) 요소를 기준으로 전체 우선 순위가 결정된다는 뜻
+- . editor pre
+	- editor 안 pre 태그 선택
+	- pre 태그는 HTML 기본 태그인 < pre >
+		- 이 태그 안 택스트는 작성된 공백과 줄바꿈이 그대로 유지되며, 보통 고정 폭 글꼴로 표시됨
+	- 코드 블록
+## 미디어 쿼리로 완성하는 반응형 디자인
+- 노션 사이드바 프로젝트는 pc, 태블릿, 모바일 환경에서 모두 자연스럽게 동작해야 하므로 다양한 화면 너비를 기준으로 스타일을 조정
+- 이를 위해 사용되는 것이 미디어 쿼리
+	- CSS에서 @media 조건을 작성하면 특정 화면 크기일 때만 스타일이 적용되도록 만들 수 있음
+	- 큰 화면 전용 레이아웃
+	- 작은 화면 전용 레이아웃
+- @media (min-width: 1280px){ 
+	- 큰 화면을 위한 스타일
+	- :root {  } }
+		
+		- --sidebar-w: 300px;
+			- 사이드 바 폭 300px로 넓게
+		- --navbar-h: 68px
+			- 네비게이션 바 높이 60px
+	- .tilte-input{  }
+		- 제목 입력창 크기
+	- .doc-canvas{  }
+		- 본문 캔버스 최대 폭 설정
+		- 한 줄에 더 많은 글자
+		- 넓은 화면에서 여유로운 레이아웃 제공
+- @meida (max-width: 768px){ }
+	- .doc-canvas{}
+		- max-width: 880px;
+			- 본문 폭 880px로 축소 
+	- 툴바 버튼 gap과 padding 조정으로 화면 최적화, 가독성 유지
+- @media (max-width: 768px){}
+	- .navbar padding 축소 -> 답답함 방지
+	- .breadcrumb 글자 축소
+	- .btn들 패딩과 폰트 사이즈 줄여서 공간 절약
+	- .toolbar top 위치 조정으로 sticky위치 조정
+	- .editor 최소 높이 조정으로 작은 화면 최적화
+	- .peek-btn은 사이드바가 접힌 상태에서 열 수 있는 버튼
+		- 이 버튼의 위치, 크기 조정으로 손가락으로 누르기 쉽게 
+- `#sidebar` 
+	- sidebar 아이디 속성을 가진 요소
+	- 높은 우선순위
+	- 사이드 바가 접히면 navbar안에 햄버거 버튼을 보여주고
+	- 원래 떠있던 peek 버튼은 숨기는 로직
+	- 즉 큰 화면에서는 Peek버튼으로 사이드 바를 열지만
+	- 작은 화면에서는 navbar 햄버거 버튼만 사용
+	- 
+
+# 본문 편집기와 상태 동기화(자바스크립트)
+## 앱 상태 설계 - STORAGE_KEY, defaultDocs, state
+- 
+
+
+
+
 
 
 
