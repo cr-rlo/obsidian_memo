@@ -650,12 +650,337 @@
 		- Math.random()으로 0~1의 난수 반환
 		- toString(36)으로 36진수 반환 -> 숫자 알파벳 혼합 문자열
 		- slice(2, 11) -> 앞에 불필요한 0. 제거 후 9자리 추출
-		- 
+## childrenOf 부터 isDescendant까지
+- 부모와 자식 관계를 통해 트리 구조를 형성하도록 돕는 함수들
+- 노션에서 중요한 점은 단순한 리스트가 아니라 계층 구조라는 점
+- 폴더 안에 또 다른 페이지를 만들 수 있고 그 페이지 아래에도 다시 서브페이지를 만들 수 있음
+	- 문서들 사이에 연결관계를 개선해주는 함수들 필요
+- function childrenOf(pid) { }
+	- return state.docs
+	- .filter( (d) => d.parentId === pid )
+		- 필터 메서드는 전체 문서들 중 parents 아이디가 입력받은 PID와 같은 것만 남기는 단계
+	- .sort(( a,b) => a.order - b. order || a.title.localeCompare(b.title ) );
+		- 자식 문서를 순서대로 정렬 
+		- 첫 번째 기준으로 비교해보고, 만약 값이 같다면 두 번째 기준으로 순서 정함
+		- 기준들은 모두 숫자를 뱉는다
+		- a.order - b. order
+			- 결과가 0이 아니면 숫자가 작은 것이 앞으로 옴
+			- 결과가 0이면 자바스크립트에서는 false로 취급하기 때문에 다음 기준에 따라 정렬
+		- a.title.localeCompare(b.title)
+			- localeCompare은 글자의 순서를 숫자로 바꿔줌
+			- a.title과 b.title 비교
+			- a.title이 b.tiltle 보다 앞 순서면 음수가 결과 값으로 나오고 순서 그대로 유지
+			- a.title이 b.title보다 뒷 순서일 때 양수가 결과 값으로 나오고 둘의 순서 바굼
+			- 둘이 같은 글자인 경우 0을 결과 값으로 반환하고 순서 유지
 
+	- 특정 부모 id의 자식 문서 배열 반환
+	- 특정 부모 요소 pid에 속한 자식 요소들을 찾아내기 위해 정의된 함수
+	- childrenOf : ~의 자식들 이라는 뜻으로 함수의 역할을 직관적으로 표현
+- function findDoc( id ){ }
+	- return state.docs.find((d) => d.id === id );
+		- 특정 id를 가진 문서를 직접 반환
+		- array.find()는 조건에 맞는 첫 번째 요소만 반환
+		- id는 고유 -> 정확히 하나만 찾아옴
+		- 편집 / 삭제 시 대상 문서에 즉시 접근
+	- id를 줄테니 그 문서를 찾아와 라는 명령
+	- state.docs는 현재 앱이 가지고 있는 모든 문서 데이터가 담긴 배열(목록)
+	- .find( )는 자바스크립트 배열의 내장 함수로 조건에 맞는 첫 번째 요소를 찾아줌
+	- (d) => d.id === id
+		- 찾기 조건
+		- 목록에 있는 각 문서 (d)를 하나씩 꺼내어 확인
+		- 그 문서의 ID(d.id)가 내가 찾으려는 ID(id)와 일치하는지 확인
+- function maxOrder( pid ) { }
+	- const kids = childrenOf(pid);
+	- return kids.length ? math.max(...kids.map( ( k ) => k.order ) ) + 1 : 0;
+	- 특정 부모(pid) 아래서 새로운 문서를 추가할 때 그 문서의 order값을 얼마줄지 계산
+	- 기존 문서들보다 뒤에 배치하기 위해 가장 큰 번호 +1을 해주는 로직
+	- const kids = childrenOf(pid);을 통해 해당 부모(pid)에 딸린 자식 문서들만 모아 kids라는 리스트 만들기
+	- kids.length ? math.max(...kids.map( ( k ) => k.order ) ) + 1 : 0;
+		- 자식이 있다면 ? 뒤 복잡한 계산식 실행
+		- 자식이 없다면 : 뒤에 0 반환
+		- math.max(...kids.map( ( k ) => k.order ) ) + 1 
+			- ...
+				- 스프레드 연산자
+				- 리스트를 낱개로 펼쳐줌
+				- Math.max는 리스트 통째가 아니라 낱개 숫자들을 인자로 받기 때문
+			- kids.map( ( k ) => k.order )
+				- 자식들 목록에서 order값만 뽑아 숫자 리스트로 만듦
+				- .map은 배열의 첫 번째 아이를 꺼내서(k)
+				- 그 배열의 주머니에서 order값만 꺼내 새로운 리스트에 담ㅇ므
+				- 그를 두번째, 세번째 끝까지 반복
+				- 결국 숫자만 남은 리스트 반환
+			- Math.max(...)
+				- 이 코드는 배열을 계산하지 못하고 낱개 숫자만 계산 가능
+				- 따라서 스프레드 연산자 사용
+				- 펼쳐진 숫자 중 가장 큰 값 찾기
+				- 그 값에 +1을 더해 다음 순서인 숫자 만들기 
 
+- function existsInDocs(id){ }
+	- return !!findDoc(id);
+	- 주어진 id가 문서 목록에 존재하는지 확인
+	- 반환값 -> true/ false
+	- !!은 이중 부정 연산자
+	- !의 반대를 의미하므로 데이터가 있으면 true 없으면 false 반환
+	- 그냥 findDoc(id);를 쓰지않고 이중 부정 연산자를 붙이는 이유는 붙이지 않으면 객체 덩어리가 반환되므로 우리가 원하는 true/ false만 반환받기 위해
+- function isDescendant(id, maybeAncestorId){ }
+	- id
+		- 자손인지 확인하고 싶은 문서의 ID
+	- maybeAncestorId
+		- 부모/ 조상 ID
+	- if ( !id || !maybeAncestorId ) return false;
+		- 두 아이디 중 하나라도 없으면(잘못된 값이면) false를 뱉고 종료
+	- let cur = findDoc(id);
+		- 현재 문서 cur을 먼저 찾음
+		- 특정 아이디를 갖는 문서 직접 반환
+		- 여기서 부터 위로 조상을 찾아감
+	- while (cur && cur.parentId){ if (cur.parentId === maybeAncestorId ) return true; cur = findDoc( cur.parentId ); } return false;
+		- while (cur && cur.parentId)
+			- 현재 문서가 존재하고 그 문서에 부모가 있는 조건을 모두 만족할 때만 { } 안 내용 실행 
+		-  if (cur.parentId === maybeAncestorId ) return true;
+			- 올라가다가 부모 아이디가 우리가 찾던 조상 아이디(maybeAncestorId)와 일치하 true 반환
+		- cur = findDoc( cur.parentId );
+			- 일치하지 않으면 한단계 더 위의 부모로 이동해서 다시 검사
+			- 조상이 아니라면 내 부모를 현재의 나(cur)로 바꿔치기 하는 것
+			- 
+		- return false;
+			- 최상위 부모까지 다 올라갔는데도 목표 아이디를 못 만났다면 조상 아님이라는 뜻으로 false 반환
+	- 어떤 문서가 다른 문서의 후손인가 여부 감시
+## create, update, delete, restore 문서 생애주기 설계
+- CRUD 구현
+- findDoc같은 도우미로 파일을 읽어오고 화면 렌더러가 state를 곧장 읽기 때문에 CRUD의 R은 자연스럽게 해결
+- 새로운 문서 만들기 - create
+	- 먼저 부모 지정 필요
+	- 어느 부모 밑에 둘지 결정
+	- 형재 순서 order
+	- 같은 부모 안에서 몇 번째 위치인지 지정
+- function createDoc({ title = "Untitled", parentId = null, afterId = null }) {
+	const id = uid();
+	- 제목, 어느 폴더에 넣을지, 어떤 문서 바로 뒤에 붙일 것인지 결정
+	- uid 함수로 고유한 번호 생성해 id라는 변수에 저장
+	let order = maxOrder(parentId);
+	- 아무런 지시가 없다면 새 문서는 맨 아래에 붙음
+	- maxOrder을 통해 가장 마지막 순서 번호를 따옴
+	if (afterId) {
+	- 그러나 만약 특정 문서 뒤에 넣어 달라는 요청이 있다면
+	const sibs = childrenOf(parentId);
+	- 같은 층에 있는 형제 문서들을 모두 불러옴
+	- afterId가 몇 번째 칸에 있는지 알아내려면 전체 목록(sibs)를 확인해야 함
 
+	const idx = sibs.findIndex((s) => s.id === afterId);
+	- 기준이 되는 문서 (afterId)가 몇 번째 인덱스(idx)에 있는지 찾음
 
+	order = idx >= 0 ? sibs[idx].order + 0.5 : order;
+	- 순서 번호에 0.5를 더해서 그 사이에 끼워 넣음
+	- idx는 아까 findIndex로 찾은 기준문서(aftrerId)의 위치
+	- afterId로 넘겨준 문서가 목록에 존재한다면 idx는 0,1,2..등이 될 것이므로 ture -> ?뒤 식 계산
+	- 존재하지 않는다면 처음에 maxOrder로 받아두었던 order값을 그대로 사용하겠다
+	- sibs[idx]는 sibs 형제 문서들의 배열 리스트에서 특정 인덱스를 가진 객체 덩어리
+	
+	}
 
+	const doc = { id, title, icon: "", parentId, content: "", starred: false, order, createdAt: Date.now(), updatedAt: Date.now(), };
+	- doc이라는 객체 생성
+	- 위 속성들을 가진 객체
+	- 여기서 order값에 위에서 만들어둔 값이 들어감
+
+	state.docs.push(doc);
+	- 새로운 문서 덩어리를 전체 문서 창고에 집어넣음
+
+	normalizeOrders(parentId);
+	- 아까 1.5처럼 지저분했던 문서를 정수로 다시 예쁘게 정렬
+
+	save();
+	- 저장
+	return id;}
+	- 이 함수를 부른 사람에게 새로 만든 문서의 아이디 값을 알려주고 종료
+	- 라우터가 즉시 해당 문서로 이동하도록 할 때 사용됨
+
+- function updateDoc( id, patch ){  }
+	- const d = findDoc(id);
+	- if (!d) return;
+	- Object.assign(d, patch, { updateAt: Date.now( ) } );
+		- Object.assign은 여러 객체를 하나로 합치는 도구
+		- Object.assign(대상, 소스1, 소스2...)
+		- 대상에 소스 들의 내용을 차례대로 부어 넣음
+		- d는 현재 수정하려는 원본 문서 객체
+		- patch는 변경분 즉 사용자가 수정한 새로운 정보
+		- { updateAt: Date.now( ) }는 강제 업데이트로 수정 시간을 현재 시각으로
+	- save();
+	- 부분 업데이트
+	- 전체 문서 교체 X
+	- 필요한 조각만 안전하게 덮어쓰기
+- function archiveDoc( id ){  }
+	- const toArchive = [ id, ...descendantOf( id ).map(( d => d.id )) ];
+		- 지울 대상 목록 만들기
+		- id는 지우려고 선택한 본인
+		- descendantOf( id )그 본인의 자손을 모두 모음
+		- map(( d => d.id )) 그 자식 덩어리에서 ID만 뽑아옴
+		- [ id, ... ]를 통해 본인 ID와 자손들의 ID리스트를 하나로 합침
+	- toArchive.forEach( ( did ) => { const idx = state.docs.findIndex( x )=> x.id === did ); 
+		- forEach를 통해 명단에 적힌 ID를 하나씩 꺼내서 실행
+		- findIndex로 이 ID를 가진 문서가 전체 목록 중 몇 번째 줄에 있는지 위치를 찾음
+		- 찾은 결과 값을 idx에 저장
+		- 목록을 다 뒤졋는데도 못 찾았다면 idx는 -1이 됨
+	- if (idx > -1 { state.docs[ idx ].__ originParentId = state.docs[ idx ].parentId ?? null ; state.trash.push(state.docs[ idx ]; state.docs.splice( idx, 1 ); save( ); })})
+		- 원래 부모 기억하기
+		- dx > -1는 목록에서 진짜 찾았을 때만 실행
+		- state.docs[ idx ]는 아까 찾은 idx번째 칸에 있는 문서 객체
+		- .__ originParentId은 문서 데이터에 새로운 이름표를 붙이는 것
+			- 앞에 언더바를 붙이는건 임시 중요 데이터라는 것을 표현하는 관습
+		- state.docs[ idx ].parentId ?? null ; 
+			- 원래 이 문서가 들어있던 부모 폴더의 ID를 가져옴
+			- 만약 부모가 없는 최상위 문서라면 대신 null을 넣어쥼
+		- state.docs.splice(idx, 1); 실제로 문서를 제거하는 명령
+			- 1은 idx 번 칸부터 딱 1개만 도려내서 버려라는 뜻
+	- 삭제하면 휴지통으로 이동
+	- 이 코드는 특정 문서와 그 밑에 달린 모든 자식 문서들을 통째로 아카이브(보관/ 삭제)하는 기능
+	- 문서 하나만 지우는게 아니라 그 가문의 모든 후손들을 찾아내서 목록에서 제거
+- function restoreDoc(id) {
+- 복원 원래 자리로 보내기, 단 부모가 휴지통 상태라면 임시로 루트에 배치
+	const idx = state.trash.findIndex((d) => d.id === id);
+	- 휴지통 목록을 뒤져서 복구하려는 문서가 몇 번째 칸에 있는지 찾음
+	if (idx === -1) return;
+	- 만약 휴지통에 해당 ID가 없다면 -1 -> 함수 종료
+	const doc = state.trash[idx];
+	- 휴지통에서 해당 문서 데이터를 doc 변수에 저장
+	state.trash.splice(idx, 1);
+	- 휴지통 목록에서 삭제
+  
+
+	const desiredParentId = doc.__ origParentId !== undefined ? doc.__ origParentId : doc.parentId;
+	- 돌아갈 부모 주소 확인하기
+	- 아까 archiveDoc에 몰래 적어둔 __ origParentId값이 있다면 그걸 쓰고 없다면 doc.parentId으로 평소에 가지고 있던 parentId를 돌아갈 주소로 정함
+	- 
+
+  
+
+	if (desiredParentId && !existsInDocs(desiredParentId)) {
+	- 돌아갈 부모 주소는 있는데 그 부모폴더가 현재 문서 목록에 없다면 -> 즉 부모도 같이 휴지통에 있는 상황
+
+	doc.parentId = null;
+	- 부모 주소가 없으니 일단 최상위(null-> root)로 보냄
+
+	doc.__ restoredOrphan = true;
+	- 나중에 부모가 복구되면 다시 합쳐질 수 있으니 __ restoredOrphan = true;를 통해 고아상태임이라는 표식을 남김
+
+	doc.__ origParentId = desiredParentId;
+	- 원래 부모 주소를 기억해 둠
+	toast("부모가 휴지통에 있어 루트로 복원되었습니다.", "success");
+
+	} else {
+
+	doc.parentId = desiredParentId ?? null;
+
+	delete doc.__ restoredOrphan;
+
+	}
+	- 부모 폴더가 멀쩡하면 원래 부모 밑으로 복원
+	- desiredParentId가 있으면 그 값 없으면 null
+	- __ restoredOrphan 이라는 꼬리표는 떼버림
+
+  
+
+	state.docs.push(doc);
+	- state.docs 목록에 문서 추가
+
+	normalizeOrders(doc.parentId);
+	- 부모 폴더 안 순서 번호를 정수로 다시 매김
+
+	
+
+	reattachOrphansFor(doc.id);
+	- 부모가 복구되었으니 아까 부모 주소가 없어서 루트로 복원되었던 자식 문서들이 있는지 확인해서 다시 원래 부모 밑으로 보구언
+
+	save();
+
+	}
+	
+- function removeDoc(id) {
+	-  휴지통에서 영구 삭제(자손 포함)
+	const targetIds = new Set([id, ...descendantsOf(id).map((d) => d.id)]);
+	- targetIds는 영구 삭제할 문서들의 ID목록
+	- new Set( )은 중복을 허용하지 않는 집합
+	- 삭제하려는 본인의 id와 그 밑에 딸린 후손들의 Id를 싹 모음
+
+	for (let i = state.trash.length - 1; i >= 0; i--) {
+	- i--는 거꾸로 인덱스
+	- length - 1라는 가장 마지막 인덱스부터 0까지 거꾸로 내려감
+
+	if (targetIds.has(state.trash[i].id)) state.trash.splice(i, 1);}
+	- targetIds.has를 통해 지금 보고있는 휴지통에 i번째 문서가 아까 만든 삭제 명단에 들어있는지 검사
+	- 있다면 그 칸을 도려내서 영구 삭제
+	save();}
+## moveDoc-normalizeOrders - 흔들림 없는 정렬
+- moveDoc, normalizeOrders, descendantsOf, reattachOrphansFor
+- moveDoc
+	- 실제 이동을 집행하는 중심함수
+	- 사용자가 특정 문서를 끌어 다른 문서의 위, 아래,안쪽 에 놓는 순간 함수 호출
+	- before/ after/ inside
+	- 이 세 경우를 하나의 분기에서 처리하는 이유는 문서 이동이라는 개념이 본질적으로 하나이기 때문
+	- function moveDoc(srcId, targetId, pos) {
+	if (!srcId || !targetId || srcId === targetId) return;
+	- 이동해서는 안 되는 상황 차단
+	if (isDescendant(targetId, srcId)) return; 
+	-  자기 하위로 이동 금지
+	- isDescendant(targetId, srcId)가 true면 return
+- const src = findDoc(srcId);
+
+	const tgt = findDoc(targetId);
+
+	if (!src || !tgt) return;
+- if (pos === "inside") {
+	- pos는 moveDoc함수의 인자
+	- 위치가 inside 일 때
+	const oldParent = src.parentId;
+	- 원래 부모 기억하기
+	src.parentId = tgt.id;
+	- 문서의 부모 id를 타겟 폴더의 id로 바꿈
+	- 데이터 상으로 이 문서는 새 폴더 소속
+	src.order = maxOrder(tgt.id);
+	- 새 폴더의 맨 끝 번호 받기
+	normalizeOrders(oldParent);
+	normalizeOrders(tgt.id);}
+	- 양쪽 순서 정렬하기
+-  else {
+	- before와 after인 경우
+	const newParent = tgt.parentId ?? null;
+	- 새로 들어 갈 부모의 주소 결정
+	- 타겟 문서의 부모 ID를 가져옴
+	- 만약 타겟 문서가 어떤 폴더에도 들어있지 않은 최상위 문서라면 이동시킬 문서의 부모도 null로 정함
+	const oldParent = src.parentId;
+	- 원래 부모 ID를 잠시 보관
+	src.parentId = newParent;
+	 - 같은 폴더 안에서 끼워 넣는 과정 혹은 다른 폴더의 문서 옆으로 이동하는 과정
+	 - 새 부모 주소로 덮어씌우는 과정 필요
+	src.order = pos === "before" ? tgt.order - 0.5 : tgt.order + 0.5;
+	- 순서 정하기 로직
+	- before이면 -0.5
+	- after이면 +0.5
+	console.log("src.order: ", src.order);
+	- 개발자 확인 용으로 임시 번호가 몇 번인지 출력해주는 콘솔
+	normalizeOrders(newParent);
+
+	normalizeOrders(oldParent);}
+	- 순서 정렬
+	src.updatedAt = Date.now();
+	- 최종 수정 시간 업데이트
+	save(); }
+
+- function normalizeOrders(pid){ 
+	- const list = childrenOf(pid);
+		- 특정 부모의 자식들을 가져와 list로 
+	- list.forEach(d,i) => {d.order = i;} }
+		- 그 배열의 앞에서부터 차례대로 실행
+		- d는 지금 내 앞에 서있는 문서 데이터 그 자체
+		- i는 지금 이문서가 서있는 줄의 번호
+		- 즉, d의 새 번호표를 지금 서있는 순서 번호로 정한다는 의미
+	- 정수 정리 보장기
+	- 정수로 깔끔 정리
+	- 실제 코드로 확인
+	- 작지만 체감 품질 좌우
+	- 트리 보정기 역할
+- function descendentOf(id){ }
+	
 
 
 
