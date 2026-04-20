@@ -962,10 +962,12 @@
 
 	normalizeOrders(oldParent);}
 	- 순서 정렬
+	- 정수로 깔끔 정리
 	src.updatedAt = Date.now();
 	- 최종 수정 시간 업데이트
 	save(); }
 
+### 퍼즐 함수들 
 - function normalizeOrders(pid){ 
 	- const list = childrenOf(pid);
 		- 특정 부모의 자식들을 가져와 list로 
@@ -980,13 +982,305 @@
 	- 작지만 체감 품질 좌우
 	- 트리 보정기 역할
 - function descendentOf(id){ }
-	
+	- 자손을 한 번에 모으는 유틸리티
+	- const res = [];
+		- 찾아낸 자손들을 담을 빈 배열 바구니 준비
+	- const walk = (pid) => {
+	 state.docs.filter( ( d ) => d.parentId === pid )
+		- 전체 문서(state.docs)중에서 부모 아이디가 지금 찾고있는 ID(pid)와 같은 문서들을 골라냄 -> 직계 자식들을 먼저 찾아내는 과정
+	 .forEach( ( c ) => { res.push( c ); walk( c.id ); } ) } };
+		- res.push로 찾은 자식( c )를 res에 담음
+		- walk( c.id );를 통해 찾은 자식의 자식도 찾기위해 자기 자신을 다시 호출
+		- 재귀 -> 자식이 없을 때까지 파고들어감
+		- 핵심함수
+		- 
+	- walk( id );
+		- 우리가 처음 입력한 id를 부모로 가진 애들부터 찾기 시작하라고 명령 -> 탐색의 시작점
+	- return res;
+		- 처음에 만들었던 배열 반환
+	- walk함수는 처음에 입력값으로 pid(부모 ID숫자, 문자열)을 받기로 약속
+		- c는 문서 객체 전체(이름, 날짜, 내용, ID등이 다 들어있는 덩어리)
+		- c.id는 그 문서의 고유 번호
+- function reattachOrphansFor(parentId){ 
+	- 흩어졌던 고아 문서들을 다시 원래의 부모 폴더로 돌려 보내는 함수
+	- let changed = false; 
+		- 변화 확인용 스위치
+		- 이번 작업에서 실제로 부모를 되찾아준 문서가 있는지 체크
+		- 만약 아무도 이사를 안 갔다면 굳이 마지막에 normalizeOrders를 통해 번호 정리를 할 필요가 없기 때문
+	- state.docs.forEach( ( d ) => { 
+		- 전체 문서 전수 조사
+		- 전체문서를 하나씩 확인하면서 두 가지 조건에 맞는 잃어버린 자식을 찾음
+	- if (d.__ restoredOrphan && d.__ origparentId === parentId ) 
+		- d.__ restoredOrphan은 고아문서라는 표시가 붙어있는가 여부를 확인하는 조건
+		- d.__ origparentId === parentId에서 __ origParentId는 삭제되기 직전의 부모 ID를 별도의 임시 변수에 저장해 둔 것이기에 그 아이디와 지금 복구된(입력한 부모 아이디)와 일치하는지 여부를 검사
+		- {d.parentId = parentId; 
+			- 백업된 주소를 다시 진자 주소 칸에 집어 넣음
+		- delete d.__ restoredOrphan;
+			- 임시로 썼던 고아 표시 삭제
+		- changed = true; } } )
+			- 변화 확인용 스위치 true로 변화가 있었음 표시
+	- if (changed) { normalizeOrders(parentId); } 
+## 공통 헬퍼 세트 - $, $ $, el, toast, fmtDate
+- 화면을 만들 때 매번 쓰이게 될 공통 도구들
+- 반복 패턴 헬퍼화: 선택, 생성, 알림, 날짜 포맷 단순화
+- DOM 캐싱 습관화: 핵심 요소 사전 참조 저장 => 성능, 일관성 향상
+- 스케일 무관 필수: 소규모 대규모 모두 적용
+- 기반층 확립: 이후 렌더링 이벤트 로직 = 헬퍼 기반
 
-
-
-
-
-
+- const $ = (sel) => document.querySelector(sel);
+- const $ $ = (sel) => Array.from(document.querySelectorAll(sel));
+	- DOM 단축 선택자
+	- 짧고 빠르게 DOM 선택
+	- sel은 CSS 선택자 의미 (예 .class, div등)
+	- $ $에서 Array.from을 붙이는 이유는 쿼리셀럭터올이 노드리스트 형태로 반환되기 때문에 배열로 바꿔주기 위해서 
+- function el(tag, opts = {} ){ 
+	- tag는 만들고싶은 HTML태그 이름
+	- opts={}는 태그에 넣고 싶은 속성들(id, className..) ={}는 만약 함수를 호출할 때 두 번째 인자를 안 넣으면 에러를 내는 대신 빈 상자르 ㄹ기본 값으로 쓰겠다는 의미
+	- const e = document.createElement(tag);
+		- 메모리상에 입력받은 tag 이름의 요소를 실제로 생성
+	- Object.assign(e, opts);
+		- opts에 있는모든 내용(속성)을 대상(e)에다가 모두 복사해서 붙여넣음
+		- 만약 `opts`에 `{ className: "bold", textContent: "안녕" }`이 들어있다면, 방금 만든 태그(`e`)에 자동으로 `e.className = "bold"`와 `e.textContent = "안녕"`이 실행
+		- 
+	- return e;}
+	- 돔 요소를 새로 만들 때 필요한 반복 패턴을 줄여주는 함수
+	- Object.assign(target, sources)
+		- sources 객체로부터 target 객체로 속성을 복사해서 옮기는 내장 함수
+- function toast(msg, type = ""){
+	- const wrap = $("#toast");
+		- 위에서 만든 $함수를 사용해서 HTML에서 # toast라는 이름의 컨테이너를 찾음
+	- if ( !wrap ) return;
+		- 만약 HTML에 # toast라는 컨테이너가 없다면 에러를 내지말고 그냥 함수를 종료하라는 의미 
+	- const t = el( "div", {className: `toast ${type}`} );
+		- 위에서 만든 el함수 사용
+		- div태그를 만드는데 클래스 이름을 toast와 사용자가 넘겨준 type을 합쳐서 만듦 -> (div class = "toast success" )
+	- t.textContent = msg;
+		- 사용자가 보낸 메세지를 태그 안에 글자로 넣음
+	- wrap.appendChild(t);
+		- 완성된 알림(t)를 아까 찾은 wrap에 실제로 집어넣음
+	- setTimeout( (  ) => {t.style.opacity = "0";
+		- setTimeout( ( ) => t.remove( ), 200 );}, 1800 );}
+			- 1.8초 뒤에 알람이 나타나고 시간이 지나면 0을 실행해서 투명하게
+			- 투명해지는 애니메이션이 끝날시간 0.2초를 기다렸다가 HTML에서 완전히 제거 
+	- 화면에서 잠깐 뜨는 알림 toast메세지를 만드는 함수
+- function fmtDate( ts ){
+	- const d= new Date(ts);
+	- return d.toLocaleString( );}
+	- 날짜 포맷 헬퍼
+	- 입력(숫자 타입 스탬프)
+	- 변환 new Date(timestamp)
+	- 포맷  date.toLocaleString( ) -> 시스템 로케일 변경
+	- 보통 timestamp는 1970년 1.1 부터 지금까지 흐른시간을 밀리초 단위로 나타낸 숫자
+	- newDate(ts)는 이 숫자를 자바스크립트가 이해할 수 있는 날짜 객체로 변환
+	- 마지막으로 toLocaleString()은 사용자의 브라우저 설정에 맞춰서 날짜와 형식 바꿔줌
+## 사이드 바 트리 렌더링 파이프라인 - renderTrees -> renderTree -> renderNode
+- 문서 데이터가 화면의 사이드 바의 트리 형태로 나타나도록 만드는 전 과정
+- function renderTrees( ){ renderTree( );}
+	- 전체 갱신 진입점( trees로 복수 형)
+	- 현재 단계에서는 내부에서 renderTree만 호출
+	- 즐겨찾기 휴지통 최근 문서 등 추가 섹션도 이 관문만 확장하면 전체 갱신 시나리오 자연스럽게 확대
+	- -> 인터페이스 안정성: 외부에서는 renderTrees() 한 번이면 충분
+	- 기능이 커져도 호출부 변경 없는 효과
+	- 예를 들어 Favorites 블록을 추가하면 renderFavorites()+ renderTree() 순으로 호출 확장 -> 외부 코드는 변경 없음
+- function renderTree( ) {
+	- if (!docListRoot) return;
+	- docListRoot.innerHTML = "";
+		- docListRoot는 트리 목록이 그려질 HTML 상의 최상위 부모 요소(예: div id = "list)
+		- innerHTML은 새로운 트리를 그리기 전에 기존에 그려져있던 내용을 초기화 -> 데이터가 중복으로 쌓이지 않고 최신 상태로 바뀜
+	- const roots = childrenOf(null);
+		- 부모 ID가 null인 문서들 즉 어디에도 속해있지 않은 최상위 폴더 찾기
+	- if (roots.length === 0) {
+		- 데이터가 없을 때
+		- const p = el("p", { className: "muted", textContent: "No pages available", });
+		- el함수를 써서 < p class = "muted"> No pages available" < /p>라는 안내 문구를 붙임
+		docListRoot.appendChild(p);}
+	- roots.forEach((d) => docListRoot.appendChild(renderNode(d, 0)));}
+		- 데이터가 있을 때
+		- 문서가 있는 경우 최상위 문서 roots를 하나씩 돌면서 renderNode(d,0)함수를 실행해 그 결과를 화면에 붙임
+### renderNode 함수
+- function renderNode(doc, level) {
+	- const wrap = el("div");
+		- 한 노드 (현재 줄+자식들 전체)를 감싸는 가장 큰 컨테이너 만듦
+	- const row = el("div", { className: "tree-row", draggable: true });
+		- 실제 내용(아이콘, 제목 등)이 들어가는 한 줄
+		- draggable을 true로 줘서 마우스를 끌 수 있게 만듦
+	- row.dataset.id = doc.id;
+		- HTML 태그에 data-id = "문서ID"형태로 정보를 숨겨둠
+		- 나중에 드래그 앤 드롭할 때 어떤 문서가 움직이는지 알아내기 위해
+	- if (state.activeId === doc.id) row.classList.add("active");
+		- 지금 클릭해서 보고 있는 문서라면 activeId라는 클래스를 추가해서 강조
+	- row.style.paddingLeft = 12 + level * 12 + "px";
+		- level이 깊어질 수록 왼쪽 여백을 12px씩 늘려 계층 구조 시각화
+	- const caretBtn = el("div", { className: "caret", title: "Expand/collapse" });
+		- 펼침 화살표 설정
+		- 자식 있는 문서에서만 표시
+	- const hasChildren = childrenOf(doc.id).length > 0;
+		- **`hasChildren`**: 현재 문서(`doc.id`)를 부모로 둔 자식이 있는지 확인
+		- .length의 개수가 0보다 크면 true 없으면 false
+	- caretBtn.textContent = hasChildren 
+		- 자식이 있으면
+	- ? state.expanded[doc.id] 
+		- ? "▾"
+		- : "▸"
+	- : "";
+		- 자식이 아예 없으면 빈 문자열을 넣어 화살표 숨김
+		- - state.expanded 속성에 따라 닫힘 열림 아이콘 변경
+		- 자식이 하나라도 있으면 state.expanded[doc.id] 의 값 확인
+		- 자식이 있는데 열려있으면 true로 아래 방향 
+		- 자식이 있음에도 자식이 없는 화살표를 눌러 펼치지 않은 상태 -> false로 오른쪽 방향
+	- if (hasChildren) {
+		- caretBtn.addEventListener("click", (e) => {
+		- e.stopPropagation();
+			- 화살표를 눌렀을 때 그 화살표를 담고 있는 전체 줄(row)이 클릭된 것으로 착각해서 해당 문서로 이동해버리는 이벤트 전달을 막음
+		- state.expanded[doc.id] = !state.expanded[doc.id];
+			- 현재 이 문서의 펼침 상태를 반대로 뒤집음
+		- renderTrees(); }); }
+			- 값이 바뀌었으니 화면 전체를 다시 그리는 렌더링
+	- const iconCls = "doc-icon " + (doc.icon ? "has-icon" : "no-icon");
+		- 아이콘이 있으면 has-icon 없으면 no-icon이라는 클래스 이름을 붙여서 iconCls에 저장
+	- const icon = el("div", {
+		- className: iconCls,
+		- textContent: doc.icon ? doc.icon : "∅",});
+			- 아이콘 데이터가 있으면 그 이모지를 쓰고 없으면 "∅" 표시를 넣어 빈칸인 것을 알려줌
+	- const labelCls = "label " + (doc.icon ? "has-icon" : "no-icon");
+	- const label = el("div", { 
+		- className: labelCls,
+		- textContent: doc.title,
+			- 문서 이름을 글자로 넣음
+		- style: "flex:1 1 auto;  min-width:0;",});
+			- 제목이 한 줄에서 남는 공간을 다 차지하게 해서 어디를 눌러도 제목을 클릭한 것 처럼 느껴지게
+	- label.addEventListener("dblclick", (e) => {
+		- e.stopPropagation();
+		- inlineRename(doc.id, label); });
+			- 제목을 더블클릭하면 inlineRename함수를 실행해 제목을 바로 수정할 수 있게 함
+	- const actions = el("div", { className: "tree-actions" });
+		- 우측에 나타날 버튼
+	- const addBtn = el("div", {
+		- className: "icon-btn ghost",
+		- title: "Add child",
+		- textContent: "＋", });
+			- 자식 추가 버튼
+	- addBtn.addEventListener("click", (e) => { 
+		- e.stopPropagation();
+		- const id = createDoc({ title: "Untitled", parentId: doc.id });
+			- 버튼을 누르면 현재 문서를 부모로하는 새 문서를 만듦
+			- 상태 갱신
+		- state.expanded[doc.id] = true;
+			- 목록을 펼침 상태로
+		- toast("New note created!", "success");
+			- 토스트 알람 주기
+		- navigateTo(id); });
+			- 새문서로 이동
+	- const ddBtn = el("div", {
+		- className: "dropdown-btn ghost", title: "More", textContent: "⋯", });
+			- 더보기 버튼 만들기 
+			- 평소에는 투명하다가 마우스를 올리면 살짝 나타나는 스타일을 입히기 위해 class에 ghost
+			- HTML의 title 속성은 브라우저가 기본적으로 제공하는 설명 전용 속성
+			- 버튼 바로 옆에 아주 작은 네모 상자를 띄우고 그 안에 More이라는 글자를 보여줌
+	- ddBtn.addEventListener("click", (e) => {
+		- e.stopPropagation();
+		- openDropdownMenu(ddBtn, doc, label); });
+			- 메뉴를 실제로 그려주는 다른 함수 실행
+			- 어떤 버튼 위에 메뉴를 띄울지 정하기 위해 ddBtn으로 클릭한 버튼 전달
+			- 어떤 문서에 대한 행위인지 알려주기 위해 doc 보냄
+			- 메뉴에서 이름을 수정하거나 참고할 때 보내라고 제목 정보 label로 보냄
+	- actions.append(ddBtn, addBtn);
+		- 위에 만들어 둔 actions라는 바구니에 아까 만든 버튼 추가
+	- row.append(caretBtn, icon, label, actions);
+		- 실제 화면에 보일 한 줄 (row)에 화살표 아이콘 제목 버튼들 순서대로 왼쪽부터 차곡 차곡 끼워 넣기
+	- row.addEventListener("click", () => navigateTo(doc.id));
+		- 사용자가 이 줄의 아무데나 (버튼 제외)클릭하면 해당 문서의 본문을 보여주는 곳으로 화면 전환(MapsTo)
+ 
+	- wrap.append(row);
+		- 위에서 다 만든 row를 가장 큰 컨테이너인 wrap에 넣음
+	- if (state.expanded[doc.id]) {
+		- 만약 이문서가 펼처진 상태라면
+		- 자식이 존재한다면
+	- const kidsWrap = el("div", { className: "children" });
+		- 자식들을 담을 전용 상자 kidswrap을 새로 만듦
+		- el div 태그 만들기, 클래스 네임 붙이기
+	- childrenOf(doc.id).forEach((ch) =>
+		- 현재 문서 doc.id를 부모로 둔 자식들의 목록을 가져와 하나씩 꺼내면서 ch라는 이름
+	- kidsWrap.appendChild(renderNode(ch, level + 1)));
+		- renderNode(자기 자신. 현재 함수)를 다시 호출
+		- 자식 또한 똑같이 render(그려서 가져와라고 명령)
+		- 자식에게는 나보다 한 단계 높은 레벨
+		- 자식 전용 주머니에 이어 붙이기
+	- wrap.append(kidsWrap);}
+		- 완성된 주머니를 전체 상자에 넣기
+	- return wrap;}
+		- 전체 덩어리 반환
+## 드래그 앤 드롭
+- dragstart -> dragover -> dragleave -> drop -> dragend의 순서와 맞물림 원리를 이해해야 정상 동작
+- 사이드 바의 각 행 row는 이미 renderNode함수 안에서 Draggable true로 설정되어 있음 -> 이 속성이 있어야 브라우저가 드래그 이벤트들을 발생시킴
+- row.addEventListener("dragstart", handleDragStart);
+- row.addEventListener("dragover", handleDragOver);
+- row.addEventListener("dragleave", handleDragLeave);
+- row.addEventListener("drop", handleDrop);
+- row.addEventListener("dragend", handleDragEnd);
+- let dragSrcId = null;
+- function handleDragStart(e){
+	- 드래그 시작 시 실행
+	- dragSrcId = this.dataset.id;
+		- 소스 문서 Id 취득 후 전역 저장
+		- 드롭 시 어떤 문서를 옮기는지 판정 기준
+	- e.dataTransfer.effectAllowed = "move";
+		- 이 아이템은 이동만 가능하다고 브라우저에 선언하는 것
+		- effectAllowed 이 드래그 동작이 허용하는 효과의 종류를 정함(move, link, copy등이 있음)
+	- e.dataTransfer.setData("text/plain", dragSrcId);}
+		- etData(형식, 데이터) 바귄에 실제 정보를 집어 넣는 메서드
+		- text/plain 들어가는 형식이 일반 텍스트 임을 알려줌
+		- dragSrcId 드래그를 시작한 그 문서의 ID
+		- dataTransfer은 드래그 앤 드롭이 일어나는 동안 데이터를 실어 나르는 투명한 이삿짐 트럭, 브라우저가 관리하는 공식적인 데이터 통로
+- function handleDragOver(e) {
+	- 드래그 항목이 특정 줄 위에 올라왔을 때 어느 위치에 떨어뜨릴지 실시간으로 판별하고 시각적으로 표시
+	- e.preventDefault();
+	- const rect = this.getBoundingClientRect();
+		- 마우스 위치 계산
+		- 현재 마우스가 올라가있는 이 줄의 실제 화면 위치와 크기 정보 가져옴
+	- const y = e.clientY - rect.top;
+		- 현재 마우스의 세로 위치에서 줄의 맨 윗부분을 뺌
+		- 결과는 줄의 맨 위에서부터 마우스가 몇 픽셀 아래에 있는가를 나타내는 숫자가 됨
+	- this.classList.remove("dragover-top", "dragover-bottom", "dragover-inside");
+		- 새로운 위치를 계산하기 전에 기존에 붙어있던 드래그 효과들을 지워서 깨끗하게 만듦
+	- if (y < rect.height * 0.25) { this.classList.add(dragover-top);}
+		- 상단 25%미만 
+		- 마우스가 줄의 아주 윗부분에 있다면 이 항목 위쪽에 끼워넣으려나 보네 라고 판단
+	- else if (y > rect.height * 0.75) { this.classList.add(dragover-bottom);}
+		- 하단 75%초과
+		- 마우스가 줄의 아주 아랫부분에 있다면 이 항목 아랫쪽에 끼워넣으려나 보네 라고 판단
+	- else { this.classList.add(dragover-inside);}}
+		- 그 외 중간 쯤이면 안으로 
+- function handleDragLeave( ){ this.classList.remove("dragover-top", "dragover-bottom", "dragover-inside") }
+	- 마우스가 행을 벗어날 때 실행
+	- 시각 힌트 정리
+	- 드롭 가이드가 사라짐
+- function handleDrop(e){
+	- 실행시점 마우스를 놓는 순간
+	- e.prventDefault( );
+	- const targetId = this.dataset.id;
+		- 지금 마우스를 뗀 곳, 즉 도착지가 어딘지 ID를 알아냄
+	- const rect = this.getBoundingClientRect();
+	- const y = e.clientY - rect.top;
+	- let pos = "inside";
+		- 기본 값은 inside
+		- 최종적으로 어디에 배치할지 결정하는 변수
+	- if (y < rect.height * 0.25) pos = before;
+	- else if (y > rect.height * 0.75) pos = after;
+	- moveDoc(dragSrcId, targetId, pos);
+		- 실제 이사 실행
+		- `dragSrcId`: 아까 `dataTransfer` 트럭에 실어뒀던 옮길 놈의 ID.
+		- `pos`: 위에서 계산한 정확한 위치(before, after, inside)
+	- this.classList.remove("dragover-top", "dragover-bottom", "dragover-inside")
+	- renderTrees();
+- function handleDropEnd(){
+	- $ $( ".tree-row" ).forEach( ( r ) => r.classList.remove("dragover-top", "dragover-bottom", "dragover-inside" );
+		- 화면에 있는 모든 트리 줄(tree-row클래스를 가진 요소들)을 전부 찾아옴
+		- 찾은 줄을 하나씩 꺼내서 r이라고 부르며 작업 반복
+		- 효과 모두 지우기
+	- dragSrcId = null;  }
+	- 드래그 앤 드롭의 모든 과정이 끝났을 때 실행되는 함수
+	- 드롭이 성공했든 중간에 취소했든 상관없이 상태 초기화
 
 
 
