@@ -1281,6 +1281,421 @@
 	- dragSrcId = null;  }
 	- 드래그 앤 드롭의 모든 과정이 끝났을 때 실행되는 함수
 	- 드롭이 성공했든 중간에 취소했든 상관없이 상태 초기화
+## normalizeOrder로 순서 정리, save로 상태 영속화
+- function save( ){
+	- const data = {
+		- 저장할 바구니 만들기
+		- 현재 상태에서 필요한 정보만 모아 하나의 큰 상자에 담음
+		- docs: state.docs,
+		- trash: state.trash,
+		- expanded: state.expanded,
+		- activeId: state.activeId, } ;
+		- localStorage.setItem(STORAGE_KEY, JSON.stringify(data))}
+			- 데이터를 글자로 바꾸기
+			- setItem을 통해 브라우저가 제공하는 저장소에 저장
+			- STORAGE_KEY는 이름표
+## load로 기본 문서와 저장소 데이터를 안전하게 복원하기
+- 새로고침하거나 어플리캐이션을 다시 열었을 때 이전에 저장해 둔 상태를 불러오기
+- 초기화 과정(load 함수)이 동작하여 기본 docs와 저장소 데이터를 병합하고 사이드 바 트리 구성
+- function load( ){ 
+	- try{ const raw = localStorage.getItem(STORAGE_KEY);
+		- if ( !raw ) { 
+			- state.docs = defaultDocs.slice( ); 
+			- state.trash = [ ];
+			- return; } 
+		- const data = JSON.parse(raw);
+		- state.docs = data.docs || defaultDocs.slice( );
+		- state.trash = data.trash || [];
+		- state.expanded = data.expanded || { };
+		- state.activeId = data.activeId || null;}
+		- catch ( e ){ 
+		- console.warn("Failed to load, using defaults", e ); 
+		- state.docs = defaultDocs.slice( );
+		- state.trash = [ ];}}
+
+- try{ const raw = localStorage.getItem(STORAGE_KEY);을 통해 저장된 문자열 불러오기
+	- 만약 저장된 값이 없으면 if ( !raw ) { 문으로 defaultDocs.slice 메서드로 복사한 기본 문서를 state.docs에 넣음
+	- 휴지통 빈 배열로 초기화하고 save호출 없이 단순히 초기 상태만 유지
+	- return으로 함수 종료하고 catch까지 도달하지 않음
+- 저장된 값 raw가 있는 경우 cosnt 부터 실행
+	- raw는 긴 문자열 텍스트임
+	- 그 문자열을 JSON.parse를 통해 객체화하여 data값에 저장
+	- data값의 docs를 state.docs로 집어넣기, 만약 그 값이 없으면 defaultDocs채우기
+	- state.trash = data.trash || [];부터 모두 마찬가지
+- 저장된 값이 있는데 에러가 발생한 경우 catch ( e ){ 으로 처리
+	- 경고 메세지를 띄우고 defaultDocs값을 복사해서 채워넣음
+	- 휴지통 초기화
+
+## 인라인 이름 바꾸기 - 더블클릭, enter, escape로 라벨 자연스럽게 편집
+- 사이드 바 트리에서 문서 이름을 직접 바꾸는 기능
+- 사용자가 문서를 더블클릭하면 기존 라벨이 입력창으로 전환되고 엔터키를 누르거나 포커스를 잃으면 이름이 반영
+- function inlineRename(id, labelEl){ 
+	- const doc = findDoc(id);
+	- if (!doc) return;
+	- const input el("input", { value: doc.title, className: "label-edit" })
+	- input.addEventListener("click", (e) => e.stopPropagation( ));
+	- input.addEventListener("keydown", (e) => {
+		- if (e.key === "Enter" {
+			- e.preventDefault( );
+			- input.blur( );}
+		- if (e.key === "Escape") {
+			- e.preventDefault( );
+			- input.value = doc.title;
+			- input.blur( );} )};
+	- input.addEventListener("blur", ( ) => {
+		- const title = input.value.trim( ) || "Untitled";
+		- updateDoc(id, { title }); 
+		- renderTrees( );
+		- if (state.activeId === id ){
+			- $("#titleInput").value = tilte;
+			- updateDocMeta( );})};
+	- labelEl.replaceWith(input);
+	- input.focus( );
+	- input.select( );
+
+- inlineRename(id, labelEl)에서 두 개의 인자를 받음
+	- id는 수정하려는 문서의 고유번호 
+	- labelEl은 현재 화면에 그려져있는 제목 글자 요소(HTML Element)
+		- 즉 눈에 보이는 글자 덩어리
+		- 입력창으로 변경시킬 글자 자리를 알기 위해 입력
+-  const doc = findDoc(id);는 인자로 받은 Id를 열쇠 삼아, 전체 데이터(state.Docs)중에서 어떤 문서인지 찾아냄
+	- 만약 해당하는 문서가 없다면 if (!doc) return;으로 함수 종료
+- 해당하는 문서가 있다면 const 부터 순차적으로 실행
+	- const input el("input", { value: doc.title, className: "label-edit" })을 통해서 새로운 < input > 태그창을 만듦
+	- value: doc.title를 통해 아까 찾은 문서의 제목을 입력창 안에 미리 적어둠
+	- value는 입력창 안에 적혀있는 실제 글자 내용을 의미함 
+- input.addEventListener("click", (e) => e.stopPropagation( ));
+	- 입력창 클릭했을 때 이벤트 실행
+	- e.stopPropagation( )으로 클릭 신호가 부모에게까지 전달되는 것을 막음
+- input.addEventListener("keydown", (e) => {은 키보드 키를 눌렀을 때 실행된느 이벤트 설정한 것
+	- if (e.key === "Enter" { 엔터키를 누른 경우 실행
+		- e.preventDefault( );으로 브라우저 기본 키 동작 취소하고
+		- input.blur( ) 함수 호출 -> 실행
+		- blur는 커서가 빠져나가는 상태를 의미
+- if (e.key === "Escape") { ESC키를 누른 경우 실행
+	- 마찬가지로  e.preventDefault( );으로 브라우저 기본 키 동작 취소하고
+	- input.value = doc.title; 원래 저장되어있던 제목을 input.value에 대입
+	- 결과적으로 입력창의 글자가 다시 원래 제목으로 되돌아감 -> 취소 기능
+	-  input.blur( )로 커서가 빠지면서 blur이벤트 자동 실행
+- input.addEventListener("blur", ( ) => {
+	- 커서가 빠지는 순간 실제로 데이터를 바꾸는 작업이 실행됨
+	- const title = input.value.trim( ) || "Untitled"; 입력값의 앞 뒤 공백을 없앤 값을 제목으로 지정하는데, 만약 그 값이 없다면 untitled라고 지어주기
+	- updateDoc(id, { title });에서 id는 수정할 대상의 고유 id, { title }은 { title: title }의 줄인 말로 새로운 제목이 담긴 객체 -> 실제 데이터 제목 업데이트
+	- renderTrees( );를 통해 트리 목록을 다시 그려서 화면 새로 고침
+- if (state.activeId === id ){ 지금 이름을 바꾼 문서가 현재 에디터에 열려있는 문서라면
+	- 목록(사이드 바)의 이름만 바꾸는 것이 아니라 오른쪽 상단의 타이틀도 변경
+	- $("#titleInput").value= title;는 에디터 오른쪽 상단에 크게 써있는 제목 입력창을 가리킴 그 값의(value) 내용을 수정한 이름으로 바꿈
+	-  updateDocMeta( ); 을 통해서 수정한 정보 갱신
+		- 수정 시간 저장상태 표시 등을 갱신
+- 마지막으로 labelEl.replaceWith(input);을 통해서 우리가 처음에 함수 두 번째 인자로 받아왔던 제목 글자(HTML 요소)를 초반에 메모리상 만들어 둔 input으로 변경
+	- replaceWith은 HTML요소를 통째로 바꿔치기하는 명령어
+	- input.focus( );으로 입력창이 나타나면 커서가 깜빡거리도록
+	- input.select( );으로 입력창 안에 기존 제목을 전체 드래그 된 상태로 만듦
+- focus와 select를 마지막에 위치해 있는 이유
+	- input이 있어야 작동하기 때문
+	- input은 const input줄에서 생성되었을 떄 아직 메모리 상에만 존재하는 상태
+	- labelEl.replaceWith(input)을 통해서 입력창으로 변경되어야 실제 화면으로 구현되기 때문에
+	- 실제화면으로 구현된 직후에 focus와 select가 실행될 수 있기 때문
+## 사이드바 액션 버튼 - +로 자식 추가, ...으로 더보기 메뉴
+- const actions = el("div", { className: "tree-actions" });
+- const addBtn = el("div", {className: "icon-btn ghost", title: "Add child", textContent: "+", })
+- addBtn.addEventListener("click", (e) => {
+	- e.stopPropagation( );
+	- const id = createDoc( { title: "untitled", parentId: doc.id });
+	- state.expanded[doc.id] = true;
+	- toast("New note created!", "success");
+	- navigateTo(id);});
+
+- const ddBtn = el("div", {className: "dropdown-btn ghost", title: "More", textContent: "...", });
+- ddBtn.addEventListener("click", (e) => {
+	- e.stopPropagation( );
+	- openDropdownMenu(ddBtn, doc, label);})
+
+- actions.append(ddBtn, addBtn);
+- row.append(caretBtn, icon, label, actions);
+	- actions 컨테이너 채우기
+	- 화살표, 아이콘, 제목, 버튼 모음으로 구성된 문서 한 줄 완성
+
+- actions라는 컨테이너를 만들고 그 안에 두 개의 버튼 생성
+- const addBtn = el("div", {className: "icon-btn ghost", title: "Add child", textContent: "+", })
+	- div 상자를 만들고 
+	- className 후에 css로 디자인 바꾸기 위해 설정
+	- title: "Add child"으로 말풍선 힌트
+	- textContent: "+"는 버튼 정중앙에 보여줄 글자
+	- ddBtn도 마찬가지
+
+- addBtn.addEventListener("click", (e) => {
+	- addBtn이 클릭되었을 때 이벤트 실행
+	- e.stopPropagation( );으로 부모 요소에 이벤트가 전파되는 것 방지
+	- const id = createDoc( { title: "untitled", parentId: doc.id });
+		- doc.id는 그 버튼이 만들어지던 순간의 doc.id 그 id를 부모 id로 설정
+			- 생성된 문서가 클릭된 문서의 자식으로 생성됨
+	- state.expanded[doc.id] = true;로 부모 폴더가 열린 상태로 바뀌게 설정
+		- 방금 만든 새문서가 바로 보이도록 하는 것
+	-  toast("New note created!", "success");을 통해 생성 성공 알림
+		- 첫 번째 인자는 눈에 보이는 실제 내용
+		- 두 번째 인자는 알림의 타입 설정 -> css 디자인 변경
+	- navigateTo(id)을 통해서 주어진 Id에 해당하는 요소 도는 라우트로 이동
+
+- ddBtn.addEventListener("click", (e) => {
+	- ddBtn이 클릭되면 이벤트 발생
+	- e.stopPropagation( );
+	- openDropdownMenu(ddBtn, doc, label);})으로 메뉴 보여주기
+		- ddBtn은 메뉴창이 뜨는 위치를 알려주는 좌표 역할
+		- doc은 메뉴에 있는 기능이 처리될 문서
+		- label은 제어대상 예를 들어 제목을 바꾸는 기능을 처리할 때 필요 
+
+## 해시 라우팅과 본문 렌더링 - 사이드바 클릭부터 에디터 갱신까지
+- 사용자가 문서를 선택하면 주소창 해시가 바뀌고 해시를 다시 해석하여 현재 활성 문서를 결정한 뒤 오른쪽 본문 영역에는 제목, 본문내용, 브레드 크럼, 이모지, 즐겨찾기 상테, 메타정보가 모두 갱신됨
+- 문서 본문 영역을 렌더링할 때 반드시 필요한 핵심 요소들 미리 잡아둠
+	- const emojiPicker = $("#emojiPicker"); 문서 아이콘 선택 팝업
+	- const emojiGrid = $("#emojiGrid"); 이모지 선택 영역
+	- const titleInput = $("#titleInput"); 제목 표시/ 즉시 수정 입력창
+	- const docMeta = $("#docMeta"); 생성/ 수정 시각 정보
+	- const editor = $("#editor"); 본문 표시, 편집 핵심 영역
+- function navigateTo(id){
+	- if (!id) {
+		- location.hash = "#/documents";}
+		- else { location.hash = "#/documents/" + id;}}
+	- 이 함수는 사이드바에서 문서를 클릭했을 때 실행됨
+	- 내부적으로 상태를 직접 바꾸지 않고 오직 브라우저 주소창의 해시를 변경
+	- 문서 아이디가 없다면 # /documents라는 루트 경로로 해시 설정
+	- 있으면 # /documents/" + id로 해시 설정
+	- 이 시점에서 브라우저는 hashchange이벤트를 발생시켜 다음 함수 실행될 준비
+
+- funciton syncFromLocation( ){
+	- const m = location.hash.match(/#\ /documents \ /?([\ w-] +) );
+	- const id = m && m[ 1 ] ? m[ 1 ] : null; 
+	- state.activeId = id;
+	- renderTrees( );
+	- renderPage( );
+	- save( );}
+- window.addEventListener("hashchange", syncFromLocation);
+	- 해시 변경을 실제 상태와 화면에 반영하는 함수
+	- 정규식을 통해 주소창 해시에서 문서 아이디 추출 
+		- location.hash는 URL에서 # 이후의 문자열 반환
+		- 정규식 # 문자 매칭
+		- \ / documents 문자열 매칭
+		- \ /? /가 있어도 없어도 됨
+		- ([\ w-] +)은 캡쳐 그룹 - 영문자, 숫자, _ , -로 이뤄진 ID추출
+		- const id = m && m[ 1 ] ? m[ 1 ] : null; 는 m이 없으면 null, m[1]이 없으면 null 정상매칭되면 id
+		- 이렇게 추출한 ID를 state.activeId 상태에저장 
+		- renderTrees( );
+			- 현재 state를 기반으로 사이드바 렌더링
+			- activeId가 바뀌었으니 트리에서 해당 항목을 하이라이트,선택 표시
+		- renderPage( );
+			- state.activeId에 해당하는 문서 본문 내용을 화면에 렌더링
+			- 선택된 문서의 실제 콘텐츠를 표시
+		- save( );
+			- 현재 상태를 로컬 스토리지에 저장
+
+- function pathOf(id){
+	- const path = [ ];
+	- let cur = findDoc(id);
+	- while(cur){
+		- path.unshift(cur);
+		- cur = cur.parentId ? findDoc(cur.parentId) : null;}
+		- return path; }
+	- const path = [ ]; 
+		- 조상들을 차례로 담을 빈 배열 생성
+	- let cur = findDoc(id); 
+		- 내가 찾고자하는 그 문서를 찾아서 cur이라는 변수에 담음
+		- 현재 위치 파악
+	- while(cur){은 조상 찾기 반복문
+		- cur이 존재하는 동안, 즉 더 이상 올라갈 부모가 없을 때까지 반복
+		- path.unshift(cur);여기서 unshift를 사용한 이유는 배열의 맨 앞에 끼워넣기 위해서 -> 추가될 때마다 뒤가 아니라 맨 앞에 차례로 쌓임
+	- cur = cur.parentId ? findDoc(cur.parentId) : null;}
+		- 부모 ID가 있으면 그 부모를 findDoc으로 찾아와서 새로운 cur로 변경
+		- 부모가 없으면 null을 넣어 반복문 종료
+	- return path; 으로 만든 배열 결과로 전달
+
+### 렌더페이지 함수
+- function renderPage() {
+	- if (!breadcrumbs || !titleInput || !editor || !starBtn || !docMeta) return;
+	- if (!state.activeId) {
+		- breadcrumbs.textContent = "No page selected";
+		- titleInput.value = "Welcome 👋";
+		- docMeta.textContent = "—";
+		- editor.innerHTML = "< p>좌측에서 문서를 선택하거나 새로운 페이지를 만들어 보세요.< /p>";
+		- starBtn.textContent = "☆";
+		- return; }
+	- const doc = findDoc(state.activeId);
+	- if (!doc) {
+		- breadcrumbs.textContent = "Unknown page";
+		- titleInput.value = "Not found";
+		- editor.innerHTML = "< p>이 문서는 존재하지 않습니다.< /p>";
+		- return;}
+	- const path = pathOf(doc.id).map((d) => d.title).join(" / ");
+	- breadcrumbs.textContent = path;
+	- titleInput.value = doc.title;
+	- editor.innerHTML = doc.content || "< p>< /p>";
+	- starBtn.textContent = doc.starred ? "★" : "☆";
+	- updateDocMeta();}
+
+- 렌더페이지 함수는 에디터 오른쪽 화면을 채우는 인테리어 담당자
+- if (!breadcrumbs || !titleInput || !editor || !starBtn || !docMeta) return;
+	- 경로, 제목 입력창, 에디터, 메타정보창 중 하나라도 없으면 함수를 실행하지 않겠다는 뜻 
+- if (!state.activeId) {
+	- 선택된 문서가 없다면
+	- breadcrumbs.textContent = "No page selected"; 브레드 크럼의 택스트 내용 변경
+	- 타이틀 값 welcome으로 변경
+	- 문서 정보 -로 변경
+	- 에디터 본문 내용을 좌측에서- 문구로 채움
+	- 즐겨찾기 표시 빈 별로 초기화
+- const doc = findDoc(state.activeId);
+	- 선택된 문서가 있다면 그 문서 데이터 찾아서 doc 변수에 담기
+- if (!doc) { 
+	- 선택된 문서가 있는데 데이터가 없다면 -> 에러가 발생한 경우
+	- 브레드 크럼 경로 텍스트 변경
+	- 제목 값 변경
+	- 본문에 이 문서는 존재- 내용 넣기
+	- 함수 종료
+- const path = pathOf(doc.id).map((d) => d.title).join(" / ");
+	- 선택된 문서가 있고 데이터가 있는 경우
+	- pathOf를 통해서 문서들이 차례로 담긴 배열 가져오기
+	- map을 통해서 배열 내용의 제목들만 골라낸 후 
+	- join("/")을 통해 리스트 사이에 / 을 넣어서 하나의 문장으로 합치기
+- breadcrumbs.textContent = path;
+	- 브레드크럼(경로 표시 창) 내용을 아까 만든 path 내용으로 넣기
+	- titleInput.value = doc.title;
+		- 제목 입력창에 현재 문서의 제목 넣기
+	- editor.innerHTML = doc.content || "< p>< /p>";
+		- 에디터 본문에 문서 내용 넣기, 없으면 빈 문단 넣기
+	- starBtn.textContent = doc.starred ? "★" : "☆";
+		- 즐겨찾기가 되어있으면 별, 아니면 빈 별
+	- updateDocMeta();}
+		- 문서 부가 정보 업데이트 함수
+
+- function updateDocMeta() {
+	- if (!docMeta) return;
+	- const d = state.activeId ? findDoc(state.activeId) : null;
+	- const ld = $("#lastEdited");
+	- if (ld) ld.textContent = new Date().toLocaleDateString();
+	- if (!d) {
+		- docMeta.textContent = "—";
+		- return;}
+	- docMeta.textContent = `Created ${fmtDate(d.createdAt)} · Updated ${fmtDate( d.updatedAt )}`;}
+
+- if (!docMeta) return;
+	- 메타 정보를 표시할 공간이 화면에 없으면 함수 종료
+- const d = state.activeId ? findDoc(state.activeId) : null;
+	- 있으면 먼저 활성화된 문서의 데이터를 가져오고 없으면 null
+-  const Id = $("#lastEdited");
+	- 화면에서 lastEdited라는 이름표를 가진 곳을 찾아서 Id에 저장
+	- if (Id) ld.textContent = new Date().toLocaleDateString();
+		- 만약 그 값이 있으면 지금 현재의 컴퓨터 날짜를 가져와서 한국식 날짜 형식으로 바꾼 후 아까 찾은 Id 자리에 내용으로 넣기
+	- if (!d) { 만약 값이 없으면 
+		- 정보 칸에 -를 넣고 함수 종료
+- docMeta.textContent = `Created ${fmtDate(d.createdAt)} · Updated ${fmtDate( d.updatedAt )}`;}
+	- 백틱 안에서의 ${}은 글자가아니라 자바스크립트 코드가 들어있음을 의미
+	- fmtDate(d.createdAt)
+		- 문서 데이터에서 만든 날짜(createdAt를 꺼내서 fmtDate라는 함수에 보내 한국식 날짜로 변경한 값
+	- 중간에 .은 읽기 쉬우라고 넣은 단순한 기호
+	- 생성일과 수정일을 채워 넣음 
+
+### 초기화 함수
+- function init( {
+	- load( );
+	- if (state.isMobile) {
+		- collapse( );
+	- else{
+		- resetWidth( );}
+	- renderTrees( );
+	- renderTrash( );
+	- if (!location.hash) { 
+		- navigateTo("welcome");
+	- else { syncFromLocation( );}
+	- const id = $(#lastEdited");
+	- if(Id) Id.textContent = new Date( ).toLocaleDateString( );
+	- syncMenuBtnVisibility( ); }
+	- init( ); 
+
+- load( ); 
+	- 저장소애서 이전에 썼던 문자 데이터를 싹 불러옴
+- if (state.isMobile) { collapse( );
+	- 사용자가 모바일로 접속했으면 사이드바를 접고(collapse)
+- else{ resetWidth( );}
+	- pc로 접속했으면 사이드 바 너비를 원래대로 resetWidth로 맞춤
+- renderTrees( );  renderTrash( );
+	- 트리구조와 휴지통 안 목록 그리기
+- if (!location.hash) {
+	- 만약 주소창에 아무런 정보가 없다면 navigateTo("welcome");으로 welcome 페이지 보여줌
+-  else { syncFromLocation( );}
+	- 주소가 있다면 그 번호에 맞는 문서를 화면에 띄움
+- const id = $(#lastEdited");
+	- 오늘 날짜 기록하기
+	- HTML 설계도에서 id = lastEdited라는 이름표를 가진 칸을 찾기
+	- if(Id) Id.textContent = new Date( ).toLocaleDateString( );
+		- 그 자리가 존재하면 현재 컴퓨터 시간을 채우기
+- syncMenuBtnVisibility( ); }
+	- 현재 상태에 맞춰 메뉴 버튼을 보여줄지 말지 결정
+- init( ); 
+	- 이 모든 설정을 마친 뒤 함수를 실행해서 앱 가동
+
+## 제목 본문 편집과 자동 저장 - 즉시 반영과 디바운스
+- const titleInput = $("#titleInput"); 제목 입력창
+- const docMeta = $("docMeta"); 메타 영역
+- const editor = $("#editor"); 본문 에디터
+	- 핵심 DOM참조
+	- 본문 렌더링과 편집을 잇는 연결고리
+- ### 실시간 제목 업데이트 코드
+- titleInput?.addEventListener("input", ( )=> {
+	- if (!state.activeId) return;
+	- const t = titleInput.value.trim( ) || "untitled";
+	- updateDoc(state.activeId, { title: t });
+	- renderTrees( );
+	- updateDocMeta( ); } );
+
+- titleInput?.addEventListener("input", ( )=> {
+	- titleInput이라는 제목 입력창
+	- ?.은 옵셔널 체이닝 
+	- .addEvent이렇게 바로 시작하지 않고 ?를 붙여서 입력창이 있는지 보고 코드 실행
+- if (!state.activeId) return;
+	- 지금 수정할 문서가 선택되어 있지 않다면 함수 종료
+- const t = titleInput.value.trim( ) || "untitled";
+	- 있다면 입력창의 값을 앞 뒤 공백 제거한 후 t라는 변수에 저장, 없으면 untitled
+- updateDoc(state.activeId, { title: t });
+	- 지금 선택된 문서를 찾아가서 그 문서의 제목을 t로 덮어쓰기
+- renderTrees( ); - updateDocMeta( ); } );
+	- 차례대로 실행
+
+### 본문 편집 디바운스
+- let saveTimer = null;
+- function saveEditorDebounced( ){
+	- clearTimeout(saveTimer);
+	- saveTimer = setTimeout(saveEditor, 400);}
+- function saveEditor( ){
+	- if (!state.activeId) return;
+	- const html = editor.innerHtml;
+	- updateDoc(state.activeId, { content: html } );
+	- updateDocMeta( );}
+- editor?.addEventListener("input", saveEditorDebounced);
+
+- let saveTimer = null;
+	- 저장할 시간을 잴 타이머 마련
+	- 처음엔 null 값
+- function saveEditorDebounced( ){
+	- clearTimeout(saveTimer);
+		- 함수가 실행되면 먼저 saveTimer 초기화
+	- saveTimer = setTimeout(saveEditor, 400);
+		- 지금으로 부터 0.4초 뒤에 saveEditor 실행
+		- 실행하겠다는 예약을 하면서 번호를 매기는데 그 값을 saveTimer에 저장
+- function saveEditor( ){
+	- if (!state.activeId) return;
+		- 먼저 실행중인 문서가 있는지 확인하고 없으면 함수 종료
+	- const html = editor.innerHtml;
+		- 있으면 에디터 본문 칸에 적힌 글자를 모두 모아 html이라는 변수에 담음
+	- updateDoc(state.activeId, { content: html } );
+		- 현재 실행중인 문서의 데이터를 덮어씌워 저장
+	-  updateDocMeta( );}
+		- 저장이 끝났으니 수정 날짜 갱신
+- editor?.addEventListener("input", saveEditorDebounced);
+	- 에디터 본문 칸이 화면에 있는지 확인하고(?.) 인풋 이벤트 실행
+	- 즉 글자 입력이 감지되면 saveEditorDebounced함수 실행
+
+- 
+
+
 
 
 
