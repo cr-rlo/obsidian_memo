@@ -1693,14 +1693,537 @@
 	- 에디터 본문 칸이 화면에 있는지 확인하고(?.) 인풋 이벤트 실행
 	- 즉 글자 입력이 감지되면 saveEditorDebounced함수 실행
 
-- 
+## 테마 전환 & 사이드바 너비 접기 - 로컬스토리지, 미디어쿼리, 애니메이션
+### 테마 전환
+- const THEME_KEY = "vnotion:theme"; //'light' | 'dark'
+	- THEME_KEY는 문자열 상수
+	- vnotion:theme는 브라우저의 저장소에 테마 정보를 저장할 때 사용할 이름표
+	- 노션 앱 전용 테마 보관함임을 표시
+	- // 뒷부분은 코드를 읽는 개발자들에게 하는 말 -> 라이트 혹은 다크만 들어올 수 있다는 것을 가이드 해줌
+	- 범위는 스크립트 전체, 모듈 스코프, 로컬 스토리지에 THEME을 저장하거나 읽어올 때 식별자로 사용됨
+	- localStorage.getItem(THEME_KEY), localStorage.setItem(THEME_KEY,value)를 하지 않아도 안전하게 동일 키 참조 가능
+
+- function applyTheme(theme){
+	- // theme: 'light' | 'dark' 
+	- document.documentElement.setAttribute("data-theme", theme); }
+
+	- 테마를 적용하는 함수
+	- 어떤 색으로 바꿀지 theme재료를 주기 -> dark 혹은 light가 들어감
+	- document.documentElement는 우리 웹사이트의 가장 최상위 루트를 찾는 것 -> HTML문서 전체를 감싸고 있는 < html > 태그를 의미
+	- setAttribute("data-theme", theme); 는 그 뿌리 태그에 data-theme라는 이름표를 붙이고 그 값으로 light혹은 dark를 써넣어라는 명령
+		- 예를 들면 이렇게 < html data-theme="dark">
+
+- function saveTheme(theme) {
+	- try{
+		- localStorage.setItem(THEME_KEY, theme);}
+		- catch(e) { } }
+
+	- 사용자가 선택한 테마 설정을 브라우저의 기억 저장소에 영구적으로 기록하는 함수
+	- 단순히 저장만하는 것이 아니라 에러 방지 문이 씌워져 있는 것이 특징
+	- 용량이 꽉 찼거나 브라우저 설정에서 차단했거나 등 에러가 발생하는 상황 보호
+	- localStorage.setItem(THEME_KEY, theme)을 통해서 브라우저 저장소의 THEME_KEY("vnotion:theme")라는 칸에 사용자가 고른 테마 값을 저장
+	- 사용자가 브라우저를 껐다 켜도 앱은 사용자가 어떤 모드를 사용했는지 기억 가능
+	- 만약 에러가 발생하면 아무것도 하지 말고 그냥 넘어가기 
+
+- function loadTheme ( ){
+	- try{ 
+		- const t = localStorage.getItem(THEME_KEY);
+		- if (t === "light" || t === "dark" ) return t; }
+		- catch(e) { } 
+		- return "dark"; }
+
+	- 브라우저 저장소에서 THEME_KEY로 저장되어 있는 값이 있는지 확인하고 있으면 변수 t에 담기
+	- 그 값이 dark나 light인 경우 그 값을 돌려주기
+	- 만약 에러가 나거나 값이 없으면 기본적으로 dark값을 반환
+
+- let currentTheme = loadTheme( );
+	- currentTheme은 상위 스코프 변수로 선언되어 이후에도 최신 테마 상태 
+	- loadTheme( )가 문자열 반환 -> currentTheme에 즉시 저장
+- applyTheme(currentTheme);
+	- 저장된 값을 넘겨 HTML 데이터 theme속성 부여 
+	- 화면은 로딩과 동시에 사용자의 마지막 설정과 같은 테마 설정으로 불러와짐
+
+### 사이드바 너비, 접기
+- const LS_LAST_WIDTH_KEY = "vnotion: lastSidebarwidth"; // 숫자 || null
+	- 사이드바 너비를 저장할 저장소 칸의 이름표 설정
+- let lastSidebarwidth = null;
+	- 마지막으로 설정된 너비 값을 담을 변수를 만들고 처음에는 빈 상태로 둠
+- function readLastwidth( ){
+	- try{
+		- const raw = localStorage.getItem(LS_LAST_WIDTH_KEY);
+		- if (raw){
+			- const n = parseFloat(raw);
+			- if (!isNaN(n)) lastSidebarwidth = n;  }
+			- } catch (e) { } }
+	- 저장소에서 예전에 저장한 너비 값을 읽어오는 함수
+	- const raw = localStorage.getItem(LS_LAST_WIDTH_KEY);는 저장소에 가서 LS_LAST_WIDTH_KEY를 찾아 raw라는 변수에 담기 -> 이때 가져온 데이터는 아직 문자 형태
+	- 만약 raw값이 존재하면 parseFloat(raw)을 통해서 문자를 소수점이 있는 숫자로 변환하여 변수 n에 담음
+	- isNaN은 괄호 안에 있는 n이 숫자가 아닌지 물어보는 것
+	- 그렇다면 역으로 !isNaN은 숫자면 true를 반환 -> true일 때만 lastSidebarwidth = n;으로 n값을 lastSidebarwidth에 넣는 것
+	-
+- function writeLastwidth(w){
+	- lastSidebarwidth = w;
+	- try{
+		- localStorage.setItem(LS_LAST_WIDTH_KEY, String(w)); }
+		- catch (e) { } }
+
+	- 다시 방문했을 때 동일 값으로 복원할 수 있게 해주는 핵심 함수
+	- 너비 값을 실제로 저장하는 함수
+	- 지금 화면에 보이는 너비 w를 lastSidebarwidth 변수에 저장
+	- 저장소의 LS_LAST_WIDTH_KEY에 새로운 너비를 문자 형태로 저장
+		- 저장소는 오직 문자만 저장할 수 있기에 이 과정 필요
+
+- function getCurrentSidebarwidth( ){
+	- const sb = document.querySelector("#sidebar");
+	- if (!sb) return null; 
+	- const v = parseFloat(getComputedStyle(sb).width || "0" );
+	- return isNaN(v) ? null : v; }
+
+	- getCurrentSidebarwidth( )를 통해 화면에 그려진 사이드 바의 진짜 크기 측정
+	- 문서에서 ID가 sidebar인 요소를 찾음
+	- 만약 사이드 바가 없으면 중단
+	- parseFloat(getComputedStyle(sb).width || "0"
+		- css파일, < style >태그, 브라우저 기본 설정 등 모든 값을 합쳐서 계산된 최종 스타일 값들을 읽어옴 -> 색상, 폰트, 마진, 너비 등
+		- 우리가 css값을 줄 때 여러 가지 단위를 쓰는데, 브라우저는 반드시 픽셀단위로 변환되어야 그 값을 사용할 수 있음 
+			- computed는 이 변환이 끝난 픽셀 값을 가져옴
+		- .width는 그 값들 중에서 너비 픽셀만 가져오는 것
+		- parseFloat을 통해서 소수점 숫자로 변환
+		- v값이 숫자가 아니면 null 값을, 숫자면 v값을 반환
+
+- function defaultSidebarwidth( ){
+	- return window.matchMedia("(max-width:768px)").matches ? 280 : 260; }
+
+	- 사용자가 한 번도 너비를 조절한 적이 없을 때 모바일인지 pc인지에 따라 적당한 크기를 정해줌
+	- 현재 화면 가로 폭이 768 px 이하라면 280px을, 아니라면 260px을 기본 값으로 사용
+
+- function setSidebarwidth(px){
+	- document.documentElement.style.setProperty("--sidebar-w", px + "px" );}
+
+	- documentElement는 HTML문서의 가장 꼭대기인 < html > 태그를 가리킴
+	- --sidebar-w은 css에서 사용하는 변수 
+		- 개발자가 css파일에 미리 만들어 둔 전역 변수임
+		- 보통 :root { --sidebar-w: 260px; } 이런 형식
+	- setProperty를 통해서 자바스크립트가 그 변수 값을 실시간으로 변경
+
+- function animateSidebarwidth(toPx, duration = 300){
+	- const fromPx = getCurrentSidebarwidth( ) || 0;
+	- if (fromPx === toPx) {
+		- setSidebarwidth(toPx);
+		- return;}
+	- const start = performance.now( );
+	- function frame(now){
+		- const progress = Math.min(1, (now - start)/ duration);
+		- const cur = fromPx + ( toPx - fromPx ) * progress;
+		- setSidebarwidth(cur);
+		- if (progress < 1) requestAnimationFrame(frame);
+		- else setSidebarwidth(toPx);}
+		- requestAnimationFrame(frame);}
+
+	- 사이드바가 부드럽게 움직이게 만드는 애니메이션 엔진
+	- function animateSidebarwidth(toPx, duration = 300){ 에서 매개변수 toPx은 목표 폭, duration은 총 재생시간
+	- const fromPx = getCurrentSidebarwidth( ) || 0;
+		- 지금 사이드바 너비가 몇 픽셀인지 가져오기
+	- if (fromPx === toPx) 목적지와 지금 너비가 같으면 함수 종료
+	- const start = performance.now( );
+		- 애니매이션 버튼을 누르는 순간의 시간을 정밀하게 기록
+		- performane.now()는 일반 시계보다 훨씬 정확해서 애니메이션을 끊김 없이 계산할 때 필수
+	- function frame(now){
+		- 브라우저가 화면을 새로 그릴 때마다 실행되는 함수
+	- const progress = Math.min(1, (now - start)/ duration);
+		- 전체 시간 중에 얼마나 지났는지 계산
+		- now - start는 현재 시각에서 애니메이션 시작 시간을 뺌
+		- 진행된 시간, 지나온 시간 도출 도출
+		- 지나온 시간 나누기 총 재생시간은 진행율
+		- 즉, 시간이 이정도 지났으니까 사이드바를 그에 맞춰 요만틈 옮겨야 겠네 가 가능해짐
+		- Math.min(1,
+			- 100%를 넘지 않도록 안전장치
+			- 애니매이션 총 진행시간이 300ms인데 마지막 frame이 실행도니 순간의 시간이 310이라면 진행율이 100을 넘어버림
+			- Math.min을 통해 1과 계산값 중 작은 값을 골라 progress에 대입
+	- const cur = fromPx + ( toPx - fromPx ) * progress;
+		- 지금 이 순간의 사이드바의 너비는 몇이어야하는지 구함 -> 현재위치
+		- toPx - fromPx는 총 움직여야 할 거리
+		-  * progress; 그 거리중에서 몇 퍼센트나 왔는지 구함
+		- 마지막으로 시작점을 더해줌
+		- 시작점에서 몇 퍼센트 왓는지 구해서 좌표
+	- setSidebarwidth(cur);
+		- 바로 위에서 계산한 현재 위치를 가지고 아까 배운 함수 호출
+		- css 너비 값을 변환하는 함수
+	- if (progress < 1) requestAnimationFrame(frame);
+		- 진행율이 100%보다 작으면 frame함수 지속적으로 호출
+		- else setSidebarwidth(toPx);}
+			- 진행율이 100%가 되었거나 도착했을 때 실행
+			- 더 이상 requestAnimationFrame을 부르지 않기 때문에 반복되던 함수 호출을 멈추고 애니메이션이 끝남
+	- requestAnimationFrame(frame);}
+		- 모든 시스템의 첫 시동을 거는 코드
+		- 이 줄이 실행되어야만 frame함수가 처음으로 브라우저의 부름을 받고 일을 시작하게 됨
+		- 
+
+- function collapse( ){
+	- const cur = getCurrentSidebarwidth( );
+	- if (cur && cur > 0) writeLastwidth(cur);
+	- sidebar.classList.add("is-collapse");
+	- animateSidebarwidth(0);
+	- syncMenuBtnvisibility( );}
+
+	- 사이드바를 접는 기능
+	- const cur = getCurrentSidebarwidth( );
+		- 현재 사이드바의 너비가 몇 픽셀인지 측정
+	- if (cur && cur > 0) writeLastwidth(cur);
+		- 너비 값이 제대로 측정됐고 0보다 크다면 그 값을 저장소에 저장
+	- sidebar.classList.add("is-collapse");
+		- 사이드바 태그에 is-collapse라는 클래스 붙이기
+		- css 목표
+	- animateSidebarwidth(0);
+		- 위에서 만들었던 애니메이션 함수를 통해 0까지 자연스럽게 줄임
+	- syncMenuBtnvisibility( );
+		- 사이드바가 사라졌으니 사이드바를 다시 열 수 있는 버튼을 보여줄지 말지 상태를 맞춰주기
+		- 
+
+- function resetWidth( ){
+	- sidebar.classList.remove("is-collapse");
+	- const remembered = lastSidebarwidth && lastSidebarwidth > 0 ? lastSidebarwidth : defaultSidebarwidth( );
+	- animateSidebarwidth(remembered);
+	- syncMenuBtnVisibility( );}
+
+	- 사이드 바를 다시 펼치는 함수
+	- 사이드 바에 붙었던 is-collapse 클래슺 ㅔ거
+	- lastSidebarwidth && lastSidebarwidth > 0 ? lastSidebarwidth : defaultSidebarwidth( );
+		- 저장소에 사이드바의 너비가 저장되어 있고 그 값이 0보다 크면 그 값을 쓰고 아니면 디폴트 값을 써서 remembered 변수에 담기
+	- animateSidebarwidth(remembered);
+		- 결정된 너비까지 사이드바르 부드럽게 펼치기
+	- syncMenuBtnVisibility( );
+		- 메뉴 열기버튼을 숨기거나 표시하거나 상태 맞추기
+
+- function syncMenuBtnVisibility( ){
+	- if (!menuBtn) return;
+	- const show = state.isMobile || sidebar.classList.contains("is-collapsed");
+	- menuBtn.style.display = show ? "grid" : "none"; }
+
+	- 메뉴 버튼 요소를 찾지 못했으면 함수 종료
+	- state.isMobile
+		- 지금 모바일 환경인가
+	- sidebar.classList.contains("is-collapsed");
+		- 또는 사이드바가 지금 접혀있는가
+	- show가 true이면 디스플레이 방식을 grid로 설정해서 버튼을 나타나게 함
+
+## 드롭 다운 메뉴, 서식 툴바
+- let currentDropdown = null;
+	- 전역 변수/ 현재 열려 있는 드롭다운 메뉴 참조
+	- 단일 메뉴 원칙: 새 메뉴 열기 전 기존 메뉴 반드시 닫음
+- function openDropdownMenu(anchorEl, doc, labelEl){
+	- closeDropdownMenu( );
+	- const rect = anchorEl.getBoundingClientRect( );
+	- const menu = el("div", { className: "dropdown-menu open" });
+	- const miRename = el ("div", { className: "menu-item", textContent: " Rename (F2)", });
+	- const miStar = el("div", { className: "menu-item", textContent: doc.starred ? "Unstar" : "Add to favorites", });
+	- const miDel = el("div", { className: "menu-item", textContent:  "Delete (move to trash)", });
+	-  const sep = el("div", { className: "menu-sep" });
+	-  const editedBy = el("div", { className: "menu-item muted" });
+	- editedBy.textContent = "Last edited by: Guest"; 
+
+	- closeDropdownMenu( );으로 새 메뉴 열기 전에 이미 열려있는 다른 메뉴 닫기
+	- const rect = anchorEl.getBoundingClientRect( );
+		- 메뉴를 띄울 기준 버튼(acchorEl)이 화면 어디에 잇고 크기가 얼마인지 계산
+		- getBoundingClientRect( )는 해당 요소의 위치와 크기에 대한 8가지 정보가 담긴 보관함(객체)를 돌려줌
+			- 모든 수치는 px단위
+			- y축, x축, bottom, right, left, width, height
+		- 가장 중요한 특징은 뷰포트 기준
+			- 문서 전체가아니라 지금 눈에 보이는 브라우저 화면 기준 -> 스크롤하면 값 변함
+	- const menu = el("div", { className: "dropdown-menu open" });
+		- 메뉴 아이템들을 담을 컨테이너 생성
+	- 메뉴칸들 생성
+	- sep은 구분선 
+	- editedBy는 정보를 보여줄 칸, 글자색은 좀 흐릿하게, 칸에 내용 채워넣기
 
 
 
 
 
+	- miRename.addEventListener("click", (e) => {
+		- e.stopPropagation( );
+		- inlineRename(doc.id, labelEl);
+		- closeDropdownMenu( ); } );
+	- miStar.addEventListener("click", (e) => {
+		- e.stopPropagation( );
+		- updateDoc(doc.id, { starred: !doc.starred } ); 
+		- if (state.activeId === doc.id) {
+			- const d = findDoc(doc.id);
+			- starBtn.textContent = d.starred ? " * " : "x "; }
+		- renderTrees( );
+		- clsoeDropdownMenu( ); } );
+		- 
+	- miDel.addEventListener("click", (e) => {
+		- e.stopPropagation( );
+		- confirmModal(`move "${doc.tilte}" and its subpages to trash?, ( ) => {
+			- archiveDoc(doc.id);
+			- toast("Note moved to trash!");
+			- if (state.activeId === doc.id) navigateTo(null);
+			- renderTrees( );
+			- renderTrash( ); } ); 
+		- closeDropdownMenu( ); } );
 
+	- 메뉴 클릭 이벤트들
+	- 
 
+	- menu.append(miRename, miStar, miDel, sep, editedBy);
+	- document.body.appendChild(menu);
+	- const top = rect.bottom + 6;
+	- const left = Math.min(rect.left, window.innerWidth - 260);
+	- menu.style.top = top + "px";
+	- menu.style.left = left + "px";
+
+	- currentDropdown = menu; }
+
+	- 아까 만든 메뉴들을 메뉴 컨테이너에 추가하기
+	- 완성된 메뉴 컨테이너를 실제 웹페이지 bodydp sjgrl
+	- 메뉴가 나타날 위치 게산하여 top과 left 변수에 담고
+	- 그 좌표를 실제 메뉴의 스타일로 적용시킴
+	- 지금 열려있는 메뉴를 currentDropdown 에 기록
+	- 나중에 다른 곳을 클릭하거나 다른 메뉴를 열 때 어떤 메뉴를 닫을지 알기 위해서
+
+-  function closeDropdownMenu( ){
+	- if (currentDropdown){
+		- currentDropdown.remove( );
+		- currentDropdown = null;} 
+- document.addEventListener("click", closeDropdownMenu);
+	- 지금 화면에 currentDropdown이 있으면 currentDropdown을 지우고 그 변수도 비우기
+	- 여백 클릭 시 메뉴가 닫히는 기능도 구현
+	- 
+
+## 서식 툴바 완전 분석 - Bold, 목록, 인용, 코드, 할 일 버튼 동작 관리
+- $("#toolbar")?.addEventListener("click", (e) => {
+	- const btn = e.target.closest("button");
+	- if (!btn) return;
+	- const cmd = btn.dataset.cmd;
+	- const fmt = btn.dataset.format;
+	- editor.focus( );
+	- 
+	- if (cmd){
+		- document.exeCommand(cmd, false, null);
+		- saveEditor( );
+		- return;}
+	- if (fmt){
+		- document.exeCommand("formatBlock", false, fmt === "p" ? "p" : fmt ); 
+		- saveEditor( );
+		- return; } } );
+
+	- 텍스트 편집기 상단에 있는 툴바를 선택했을 때의 로직
+	- 아이디가 toolbar인 요소를 찾아서 그 안에서 클릭이 일어나면 다음 일들을 시작하라는 것
+	- ?.을 통해 화면에 툴바가 없어도 에러를 내지않고 조용히 넘어가기
+	- 클릭된 요소(e.target)에서 가장 가까운 부모버튼(button)을 찾아내서 btn에 담기
+		- 버튼 안에 아이콘이나 글자가 들어있는 경우 그들을 선택해도 버튼을 누른 것으로 판단
+	- 클릭된 곳이 버튼이나 버튼 안쪽이 아니라면 함수 종료
+	- 버튼의 data속성 즉 data-cmd 혹은 data-format을 읽어와서 cmd/ fmt에 담기
+	-  editor.focus( );
+		- 버튼을 누르는 순간 포커스가 툴바로 옮겨가는데, 이를 다시 편집창으로 옮겨서 글을 바로 이어쓸 수 있도록 해주는 매너있는 코드
+	- if (cmd){
+		- 만약 cmd정보가 있다면 브라우저에게 그 명령을 실행하라고 함
+		- document.exeCommand(cmd, false, null);
+			- exeCommand(명령어, 사용자 UI여부, 추가값)
+			- 명령어 부분에는 무엇을 할지 입력
+			- 사용자 UI여부는 브라우저 기본 UI를 보여줄 지 말지인데 보통 false
+			- 추가 값은 폰트 크기나 색상처럼 추가 정보가 필요할 때 넣음
+	- if (fmt){
+		- 글자 모양이 아니라 문단 전체의 성격을 바꾸는 역할
+		- 만약 버튼이 data-format 정보를 갖고있다면 아래 내용 실행
+		- 보통 제목이나 일반 본문, 인용구 등이 여기에 해당
+		- **`"formatBlock"`**: 브라우저에게 "지금 커서가 있는 이 줄(블록) 전체의 태그를 바꿔줘"라고 명령하는 특수한 명령어
+		- fmt === "p" ? "p" : fmt
+			- 만약 넘겨받은 값이 p라면 그냥 p를 쓰고 아니라면 h1이나 h2같은 해당 값을 그대로 쓰기
+- cmd는 드래그한 글자들, fmt는 커서가 있는 줄 전체
+
+- $("#bulletsBtn")?.addEventListener("click", ( ) => {
+	- editor.focus( );
+	- document.execCommand("insertUnorderedList");
+	- saveEditor( ); } );
+
+	- 글머리 기호 매기기 
+	- document.execCommand
+		- 브라우저에게 명령
+		- nsertUnorderedList는 점 모양의 글머리 기호 목록을 넣어줌
+
+- $("#numbersBtn")?.addEventListener("click", ( ) => {
+	- editor.focus( );
+	- document.exeCommand("insertOrderdList");
+	- saveEditor( );})
+
+- $("#codeBtn")?.addEventListener("click", ( ) => {
+	- editor.focus( );
+	- document.exeCommand("formatBlock", false, "PRE");
+	- saveEditor( ); } );
+	- 지금 커서가 있는 줄을 코드 전용 태그인 < pre >로 감싸라는 명령
+
+- $("#quoteBtn")?.addEventListener("click", ( ) => {
+	- editor.focus( );
+	- document.exeCommand("formatBlock", false, "BLOCKQUOTE");
+	- saveEditor( ); } );
+	- 지금 커서가 있는 줄을 < blockquote >의 인용구 태그로 감싸라는 명령
+
+- $("#todoBtn")?.addEventListener("click", ( ) => {
+	- const box = document.createElement("div");
+	- box.innerHTML = `<label><input type = "checkbox"> <span>TO-do </span></label>`;
+	- const sel = window.getSelection( );
+	- if (!sel.rangeCount) {
+		- editor.appendChild(box);
+	else {
+		sel.getRangeAt(0).insertNode(box);}
+		saveEditor( ); } } );
+
+	- 브라우저 내장 명령어가 없어서 직접 만드는 방식
+	- 새로운 div 박스 생성
+	- 그 박스 안에 체크박스와 todo라는 글자 조립해서 집어넣음
+	- sel은 지금 현재 사용자의 커서 위치 정보 저장
+	- if (!sel.rangeCount) {
+		- 만약 커서 위치가 어딘지 찾을 수 없다면
+		- 에디터의 맨 마지막 부분에 체크박스 생성
+		- rangeCount는 사용자가 선택한 영역이 몇 개인지 알려주는 숫자
+			- 만약 글자를 드래그했거나 에디터 안에서 커서가 깜빡이고 있으면 숫자는 보통 1
+			- 선택된 곳이 전혀 없다면 0 -> false
+	- sel.getRangeAt(0).insertNode(box);}
+		- getRangeAt은 여러 개의 선택 영역 중에서 0번 즉 첫 번째 영역의 정보를 가져오라는 뜻
+		- 그 위치에 insertNode로 체크박스 끼워넣기
+		- 
+
+## 이모지 아이콘과 즐겨찾기
+- function openEmojiPicker( ){
+	- const btn = document.getElementById("iconBtn");
+	- if (!btn || !emojiPicker) return;
+	- const rect = btn.getBoundingClientRect( );
+	- emojiPicker.style.left = Math.min(rect.left, window.inner
+	  Width - 340) + "px";
+	- emojiPicker.style.top = rect.bottom + 8 + "px";
+	- emojiPicker.classList.add("open"); }
+
+	- 이모지 선택창을 화면의 적절한 위치에 나타나게 만드는 함수
+	- 화면에서 이모지버튼을 찾아서 btn이라는 변수에 담기
+		- 이 버튼 바로 아래에 이모지 창을 띄워야해서 기준점이 되는 버튼을 먼저 찾는 것
+	- 버튼이 없거나 이모지 선택창 객체가 안 만들어졌다면 함수 종료
+	- btn의 정확한 좌표 가져와서 rect 변수에 담기
+	- Math.min(rect.left, window.inner
+	  Width - 340) + "px"
+		- 버튼의 좌표 왼쪽 끝 또는 전체 화면 너비에서 이모지 창 너비만큼 뺀 값
+		- 둘 중에서 더 작은 값을 선택
+		- 이모지 창이 오른쪽 밖으로 빠져나가는 것 방지
+	- emojiPicker.classList.add("open");
+		- 이모지 선택창에 open이라는 클래스 추가해서 이모지 창이 화면에 보이도록
+
+- function closeEmojiPicker( ){
+	- emojiPicker?.classList.remove("open");}
+
+- document.getElementById("iconBtn")?.addEventListener("click", (e) => {
+	- e.stopPropagation( );
+	- buildEmojiGrid( );
+	- openEmojiPicker( );});
+
+	- 아이콘 버튼을 클릭했을 때 일어나는 이벤트
+	- 부모로 이벤트 전파되는 것 방지
+	- buildEmojiGrid( );
+		- 창을 열 때마다 최신 이모지 목록 준비
+	- openEmojiPicker( );}
+		- 이모지 창을 화면에 띄움
+
+- document.addEventListener("click", (e) => {
+	- if (
+		- emojiPicker && !emojiPicker.contains(e.target) && e.target.id !== "iconBtn" ) 
+	- closeEmojiPicker( ); });
+
+	- 화면 어디든 클릭했을 때 창을 닫는 것
+	-  일단 이모지 창이 존재하고, 클릭한 지점이 이모지 창 안쪽이 이니며, 클릭한 곳의 id값이 이모지 창을 여는 버튼이 아닐 때 이모지 창 닫기 
+
+- function buildEmojiGrid( ){
+	- if (!emojiGrid) return;
+	- emojiGrid.innerHTML = "";
+	- EMOJI.forEach((em) => {
+		- const b = el("button", { textContent: em } );
+		- b.addEventListener("click", ( ) => {
+			- if (state.activeId) {
+				- updateDoc(state.activeId, { icon:em } ); 
+				- const btn = document.getElementById("iconBtn");
+				- if (btn) btn.textContent = em; 
+				- renderTrees( );}
+				- closeEmojiPicker( ); } ) ;
+		- emojiGrid.appendChild( b ); } ); }
+	- 이모지 선택창의 내부를 실제로 채우고 기능을 부여하는 핵심 함수
+	-  if (!emojiGrid) return;
+		- 이모지들을 담을 그릇이 없으면 함수 종료
+	- emojiGrid.innerHTML = "";
+		- 이모지 그릇 안에 들어있던 기존 내용물 싹 비우기
+		- 창을 열 때마다 실행하여 내용물들이 호출될 때마다 추가되는 것 방지
+	- EMOJI라는 목록 배열 안에 담긴 이모지들을 하나씩 꺼내서 반복작업 시작
+		- **`em`**: 반복문 안에서 현재 처리 중인 이모지 문자 하나(예: "😀")를 의미
+	- const b = el("button", { textContentL em } );
+		- 새로운 버튼 요소를 만들고 그 안에 이모지 하나(em)을 글자로 넣기
+	- b를 클릭하면
+		- if (state.activeId) {
+			- 사용자가 어떤 문서를 선택해서 읽고 있는 경우
+			- updateDoc(state.activeId, { icon:em } ); 
+				- 그 문서의 아이콘 데이터 베이스 변경
+			- const btn = document.getElementById("iconBtn");
+				- 문서의 iconBtn아이디를 가진 요소 btn변수에 담기
+				- 화면 상단에 있는 대표 아이콘 버튼
+			- if (btn) btn.textContent = em;
+				- 그 버튼이 있다면 그를 em으로 변경
+		- 사이드 바 목록 다시 그리고
+		- 이모지 선택창 닫기
+	- emojiGrid.appendChild( b ); } ); }
+		- 만든 버튼을 이모지그리드에 담기
+
+- starBtn?.addEventListener("click", ( ) = >{
+- if (!state.activeId) return;
+- const d = findDoc(state.activeId);
+- updateDoc(state.activeId, { starred: !d.starred } );
+- const nd = findDoc(state.activeId);
+- starBtn.textContent = nd.starred ? " 별 " : " 별 x " ; 
+- renderTrees( ); } );
+
+	- 별 버튼을 누르면 이벤트 시작
+	- 만약 열려있는 문서가 없다면 함수 종료 
+	- 현재 문서의 원래 상태가 어던지 데이터베이스에서 찾아와 d에 담기
+	- 별이 있었다면 없게, 없었다면 있게 데이터 베이스를 업데이트
+	- 방금 업데이트 된 데이터 상태를 다시 nd에 담ㄱ시
+	- 버튼의 글자를, nd.starred가 true면 별을 붙이고 반대면 별 없애기
+	- 사이드 바 목록 다시 그리기
+
+## 새 페이지 생성 - 하위 문서 , 루트 문서 추가
+- newChildBtn?.addEventListener("click",( ) => {
+	- const pid = state.activeId || null;
+	- const id = createDoc( { title: "Untitled", parentId: pid } );
+	- if (pid) state.expanded[pid] = true;
+	- toast("New subpage created:", "success");
+	- navigateTo(id); });
+
+	- 현재 내가 보고있는 페이지 내부에 새로운 하위 페이지를 만드는 기능
+	- 하위 페이지 생성버튼을 클릭하면 실행되는 이벤트
+	- const pid = state.activeId || null;
+		- 지금 보고 있는 페이지의 ID를 부모 id로 설정, 없다면 null로
+	- const id = createDoc( { title: "Untitled", parentId: pid } );
+		- 데이터 베이스에 새 문서 생성
+		- 제목은 Untitled로 하고 부모 아이디는 방금 정한 pid로 설정
+		- 이 명령이 실행되면 지금 보고있는 페이지 밑에 하위 문서 생성
+	- if (pid) state.expanded[pid] = true;
+		- 만약 부모 페이지가 있다면
+			- 그 부모 페이지의 쳘침 상태를 true로 설정 
+			- state.expanded 목록 들(사전)에서 pid 의 상태를 변경
+	- 알람을 띄우고 생성한 함수로 이동
+
+- const actionAddPage = document.getElementById("actionAddPage");
+- const actionCreateRoot = document.getElementById("actionCreateRoot");
+- [actionAddPage, actionCreateRoot].forEach( (btn) => {
+	- if (btn){
+		- btn.addEventListener("click", ( ) => {
+			- const id = createDoc( { title: "Untitled", parentId: null } ); 
+			- toast("New page created!", "success" );
+			- navigateTo(id); } ); } });
+
+	- 가장 최상위 페이지를 만드는 버튼들에 기능을 부여하는 함수
+	- [actionAddPage, actionCreateRoot].forEach(btn) => {
+		- 두 버튼들을 하나의 리스트로 묶어서 반복문
+	- 만약 btn이 있다면 
+		- 즉 [ ] 배열 안에 있는 버튼들이 실제로 있다면
+		- 이벤트 함수 등록
+		- const id = createDoc( { title: "Untitled", parentId: null } )
+			- 이름이 Untitled인 문서, 부모 아이디는 null -> 루트에 생성
+			- 
 
 
 
