@@ -2223,7 +2223,475 @@
 		- 이벤트 함수 등록
 		- const id = createDoc( { title: "Untitled", parentId: null } )
 			- 이름이 Untitled인 문서, 부모 아이디는 null -> 루트에 생성
+## 휴지통 시스템 해부 - 삭제, 복원, 영구삭제, 팝오버 위치
+- const trashTrigger = $("trashTrigger");
+	- 사이드바 하단/ 네비게이션의 휴지통 아이콘 버튼, 목록 열기/ 닫기 트리거
+- const traghPopover = $("trashPopover);
+	- 삭제 문서 리스트를 보여주는 팝오버 영역 (평소 숨김 -> 클릭 시 표시)
+	- 이 두 요소를 미리 상수로 캐싱해두는 이유는 이후 여러 함수에서 반복 접근하므로 빠르게 참조하기 위함
+	- 성능과 가독성 향상, 불필요한 DOM 탐색 감소, 코드 간결 명확
+
+- function positionTrashPopover( ){
+	- if (!trashTrigger || !trashPopover) return;
+	- const rect = trashTrigger.getBoundingClientRect( );
+	- const bottom = window.matchMedia("(max-width: 768px)").matches;
+	- if (bottom){
+		- trashPopover.style.left = 
+			- Math.min(rect.left, window.innerWidth - 340) + "px"; 
+		- trashPopover.style.top = rect.bottom + 8 + "px";}
+	- else { 
+		- trashPopover.style.left = Math.min(rect.right + 8, window.innerWidth - 340) + "px";
+		- trashPopover.style.top = rect.top + "px"; }
+
+	- 휴지통 팝오버의 위치를 결정하는 함수
+	- 가장 먼저 실행되는 부분은 if 절
+		- trashTrigger 휴지통 버튼과 팝오버 창 중 어느 하나라도 없으면 함수 종료
+	- rect 변수에 화면상 휴지통 버튼의 위치를 구함
+		- 반환 값은 top/left/right/bottom/width/height
+	- window.matchMedia("(max-width: 768px)").matches;
+		- matchMedia 메서드는 현재 화면이 모바일인지 아닌지 판별
+		- 뷰포트가 768보다 작거나 같으면 true 반환
+		- 이는 모바일과 데스크탑에서 팝오버를 표시하는 위치가 달라져야 하기 때문에 필요
+	- if (bottom){
+		- 조건문 분기에서 bottom이 true 즉 모바일인 경우 먼저 처리
+		- trashPopover.style.left = 
+			- Math.min(rect.left, window.innerWidth - 340) + "px"; 
+				- 가로 위치 설정
+				- 버튼의 왼쪽 좌표를 기준으로 삼되, (rect.left)
+				- 현재 내 브라우저 창의 전체 너비(window.innerWidth) 에서 휴지통 팝오버의 너비(340px)을 뺀 값
+				- Math.min 을 통해서 괄호 안 두 숫자 중 더 작은 숫자를 선택
+		- trashPopover.style.top = rect.bottom + 8 + "px";}
+			- 세로 위치는 버튼 아래쪽 8px 여백을 두고 위치
+	- else { 
+		- 데스크탑 환경인 경우 팝오버가 버튼 오른쪽에 나타나도록 배치
+		- trashPopover.style.left = Math.min(rect.right + 8, window.innerWidth - 340) + "px";
+			- 가로 위치는 버튼 오른쪽에서 8px 떨어진 위치
+			- 창의 전체 너비에서 팝오버 창의 너비를 뺀 값
+			- 둘 중 더 작은 값을 left위치로 
+		- trashPopover.style.top = rect.top + "px"; }
+			- 세로위치는 버튼과 같은 높이에 맞춰 정렬
+## 휴지통 팝오버 전체 흐름 - 토글, 리사이즈, 외부클릭제어
+- function toggleTrash( ){
+	- if (!trashPopover) return;
+	- if (trashPopover.classList.contains("open")){
+		- trashPopover.classist.remove("open");
+		- return;}
+	- positionTrashPopover( );
+	- trashPopover.classList.add("open"); }
+
+	- 팝오버의 열림과 닫힘을 실제로 제어하는 핵심 함수
+	- DOM 구조상 팝오버 요소가 없을 때 함수 종료
+	- if (trashPopover.classList.contains("open")){
+		- 현재 팝오버가 열려있는지 판단
+		- 열림 상태면 open 클래스를 제거하고 즉시 함수 종료
+		- 이렇게 하면 버튼을 한 번 누르면 열리고 다시 누르면 닫히는 토글 구조가 완성
+	- positionTrashPopover( );
+		- 반대로 열려있지 않은 상태라면 위 함수를 호출해 화면상 위치를 버튼 기준으로 계산
+	- trashPopover.classList.add("open"); }
+		- add 메서드로 open 클래스를 붙여 css로 팝오버 요소가 보이도록 구현
+		- 
+
+- trashTrigger?.addEventListener("click", (e) => {
+	- e.stopPropagation( );
+	- toggleTrash( );});
+
+	- 토글 함수를 실제 사용자 행동에 연결하는 단계
+	- 휴지통 버튼에 클릭 이벤트를 바인딩하는 코드
+	- 클릭 버블링 차단
+	- 버블링을 차단하고 버튼 클릭은 toggleTrash만 실행
+
+- window.addEventListener("resize", ( ) => {
+	- if (trashPopover?.classList.contains("open")) positionTrashPopover( );} )
+	- 팝오버는 반응형 레이아웃에서도 위치가 올바르게 유지되어야 함
+	- 창 크기를 변경할 때 팝오버가 열린 상태라면 -> 위치를 다시 계산하는 로직
+
+- document.addEventListener("click", (e) => {
+	- if (
+		- trashPopover && ! trashPopover.contains(e.target) && e.target !== trashTrigger )
+		- trashPopover.classList.remove("open");});
+		- 버튼 외부를 눌렀을 때 자동으로 닫히는 전역 이벤트 핸들러
+		- 핵심은 세 가지 조건
+			- 팝오버가 존재해야함
+			- 클릭 대상이 팝오버 내부가 아니어야 함
+			- 누른 대상이 휴지통 버튼이 아니어야 함
+			- 이 조건들이 모두 만족되면 open 클래스가 제거되고 팝오버 닫힘
 			- 
+
+## 휴지통 목록 & 실시간 검색 - renderTrash와 입력 위임, 복원 영구 삭제 흐름
+- 실제 목록을 만드는 renderTrash와 검색 입력 이벤트를 연결하는 전역 인풋 리스너
+### renderTrees()
+- function renderTrees( ){
+	- 휴지통 목록을 화면에 그려주는 함수
+	- const list = $("trashList");
+		- 휴지통 아이템들을 담을 상자 요소인 trashList를 가져와서 list라는 변수에 담기
+		- 화면에 목록을 뿌려줄 도화지를 준비하는 것
+	- 
+	- if ( !list ) return;
+		- 만약 리스트라는 상자가 화면에 없으면 함수 종료
+		- 즉, HTML요소인 trashList가 없으면 함수 종료
+	- const search = ($("trashSearch")?.value || "").trim( ).toLowerCase( );
+		- ID가 trashSearch인 입력창에 입력된 글자, 검색창이 없거나 비어있으면 빈글자의 앞뒤 공백을 없애고 모두 소문자로 바꾼 뒤 search라는 변수에 저장
+	- list.innerHtml = "";
+		- list에 있던 기존의 내용들 지우기
+		- 새로 목록을 그리기 전에 비우기
+		- 중복으로 불러와지는 것을 막기 위함
+	- const filtered = state.trash.filter( (d) => d.title.toLowerCase( ).includes(search) );
+		- 휴지통 데이터(state.trash)중에서 필터링하기
+		- 데이터의 제목을 소문자로 변환한 값에 아가 찾은 검색어가 포함된 문서들만 골라서 필터링한 후 filtered라는 변수에 담기
+
+	- if (filtered.length === 0) {
+		- 위에서 필터링 한 결과가 0일 때
+		- 휴지통이 아예 비어있거나 검색어에 맞는 결과가 없을 때
+		- const p = el("p", {
+			- className: "muted",
+			- textContent: "No documents found",});
+				- 화면에 글자를 보여줄 새 문단 태그 만들기
+				- css를 조절하기 위해 muted 클래스 붙이기
+				- 그 문단 안에 찾는 문서가 없습니다 라는 안내 문구 적어 넣기
+		- list.appendChild(p);
+			- 아까 비워둔 휴지통 상자(list)안에 이 안내 문구 집어 넣기
+			- 사용자에게 아무 것도 없다는 사실을 시각적으로 보여줌
+		- return;)
+			- 결과가 없으니 이 밑에 이어질 목록 그리기 코드는 실행할 필요가 없으므로 여기서 함수 종료
+			- 
+	- filtered.forEach(doc) => {
+		- 검색된 문서들을 하나씩 꺼내서 doc이라고 부르고 이어질 작업 반복
+		- const row =  el("div", { className: "trash-row" } ); 
+			- 문서 한 줄을 통째로 감쌀 커다란 상자를 만들고 trash-row라는 클래스 붙이기
+			- 이 상자 안에 제목, 복원버튼, 삭제 버튼 등이 들어갈 것
+		- const title el("span", { textContent: doc.title, style: "flex;1 1 auto; min-width:0, } );
+			- 문서 제목을 담을 칸 만들기
+			- 그 칸 안에 실제 문서의 제목을 적어 넣음
+			- flex: 1 1 auto;은 제목이 차지할 수 있는 공간을 최대한 넓게 쓰라는 의미
+				- 첫 번째 1은 상자에 빈 공간을 다 차지하겠다는 의미
+				- 두 번째 1은 상자가 좁아지면 제목이 차지하는 공간도 줄어들겠다는 의미
+				- 세 번째 auto는 제목이 가진 글자 길이에 맞춰 자리를 잡아달라는 의미
+			- min-width:0,
+				- 보통 css에서 글자 상자(span, div)등은 안에 들어있는 글자 길이 보다 줄어들 수 없게 설정되어있음
+				- 최소 너비를 0으로 지정해서 줄어들 수 있게 설정
+		- const info = el("span", {
+			- 마찬가지로 span 태그 생성 
+			- className: "muted",
+			- textContent: doc.__ origParentId && !existsInDocs(doc.__ origParentId) ? " -> 복원 시 루트로 이동" : "", } );
+				- doc.__ origParentId은 이 문서가 삭제되기 전에 가졌던 부모의 ID
+				- existsInDocs는 지금 살아있는 문서 목록에 그 부모 아이디가 존재하는지 체크하는 함수 -> !이 붙었으니 목록에 존재하지 않는다면
+				- 즉, 원래 부모가 있었고 그 부모가 지금 문서 목록에 존재하지 않는다면 복원시 루트로 이동이라는 글자를 span 태그의 내용으로
+				- 그러나 이 조건이 거짓이면 아무메세지도 출력하지 않음
+		- const acts = el("div", { className: "trash-actions" });
+			- 버튼 도구함 만들기
+			- 사용자가 직접 누르게 될 복원, 영구 삭제 등을 담는 상자 만들기
+		- const restore = el("div",
+			- { className: "icon-btn",
+			- title: "Restore",  
+			- textContent: "화살표" } );
+				- 버튼의 모양을 아이콘 모양으로 설정하기 위해 클래스 붙이기
+				- 마우스를 버튼 위에 올렸을 때 복원이라는 설명 풍선이 뜨게 함
+				- 화살표 모양의 아이콘을 버튼의 내용으로 설정
+				- 위 div 요소를 생성
+		- const del = el("div", {
+			- className: "icon-btn",
+			- title: "Delete permanently",
+			- textContent: "휴지통",});
+				- 영구 삭제 기능을 할 버튼
+				- 마우스를 올리면 영구적으로 삭제라는 경고 문구 
+				- 휴지통 아이콘을 버튼의 내용으로 설정
+		- restore.addEventListener("click", (e) => {
+			- 복원 버튼 클릭 이벤트
+			- e.stopPropagation( );
+				- 버블링 전파 막기 
+			- restoreDoc(doc.id);
+				- 복원 기능을 담당하는 함수
+				- 대상은 휴지통에 있는 이 문서의 아이디
+			- renderTrees( );
+			- renderTrash( ); });
+				-  사이드바와 휴지통 목록을 렌더링하여 화면에 반영
+		- del.addEventListener("click", (e) => {
+			- 영구 삭제 버튼 클릭 이벤트
+			- e.stopPropagation( );
+			- confirmModal(`Delete "${doc.title}" permanently?`, ( ) => {
+				- 영구 삭제 여부를 묻는 확인창 띄우기
+				- confirmModal(메세지, 실행할 함수)
+				- 사용자가 확인을 눌렀을 때만 함수 실행
+
+
+				- removeDoc(doc.id);
+					- 데이터 베이스에서 영구 삭제하는 함수
+				- toast("Note deleted!", "error");
+					- 화면 구석에 알림창 띄우기
+				- renderTrash( ); }); });
+					- 삭제가 완료되었으니 휴지통 목록 다시 그리기
+		- acts.append(info, restore, del);
+			- 버튼 바구니에 안내 메세지, 복원 버튼, 삭제 버튼 순서대로 담음
+			- 예를 들면 [ 안내문구 | ↩️ | 🗑️ ]
+		- row.append(title, acts);
+			- 한 줄 상자에 제목과 방금 만든 버튼 묶음을 넣음
+		- row.addEventListener("click", ( ) => {
+			- 만약 줄 전체를 아무데나 클릭하면 
+			- trashPopover?.classList.remove("open");
+				- 열려 있던 휴지통 팝업창을 닫음
+			- navigateTo(doc.id); });
+				- 해당 문서가 있는 곳으로 화면을 이동시킴
+		- list.appendChild(row);  }); }
+			- 완성된 줄을 list에 붙이기 
+			- 이 과정이 forEach를 통해서 문서 개수만큼 반복
+- document.addEventListener("input", (e) => {
+	- if (e.target && e.target.id === "trashSearch") renderTrees( ); });
+
+	- renderTrees 함수를 언제 실행할 것인가를 결정하는 이벤트 리스너
+	- 이 문서 전체에서 사용자가 뭔가 입력하는 사건이 발생하는지 감시하라 
+	- 만약 입력 사건이 발생하면 그 사건 정보(e)를 들고 이 함수 실행
+	- 방금 글자가 입력된 곳의 id가 trashSearch인가
+	- 그렇다면 renderTrees 함수 실행 
+- 왜 검색창에 직접 리스너를 붙이지 않고 document에 붙였는가?
+	- 직접 바인딩의 한계: 인풋에 리스너 직접 붙이면 다시 열 때 연결 끊기 발생
+		- list.innerHTML = "";을 해서 화면을 싹 지우고 다시 그림
+		- 검색창도 휴지통을 열고 닫을 때마다 새로만들어지는 구조
+		- 창을 닫고 다시 열 때 리스너는 이전 검색창에 붙어있으므로 이벤트 연결이 끊김
+		- 이 문제를 해결하기 위해 절대 사라지지 않는 document 문서 전체에 이벤트를 위임
+	- 문서 전체에 input 이벤트 위임하고 e.target && e.target.id === "trashSearch"을 통해서 휴지통 검색창만 식별
+	- 조건 만족시 renderTrees 재호출 
+	- 검색 파싱, 필터 즉시 재실행
+	- 한 글자 입력마다 실시간 필터링, 붙였다 떼는 UI에서도 안정적 이벤트 관리 
+
+## Favorites Modal 구현 - 목록 정렬, 빠른 이동, 닫기 UX
+- 사용자가 사이드바나 내비게이션 바에서 Favorites 버튼을 눌렀을 때 전체 화면을 덮는 오버레이가 열리고 즐겨찾기한 문서들이 목록으로 정렬되어 표시
+- 여기서 별을 해제하거나 문서를 클릭해 바로 이동할 수 있도록 함
+
+### 핵심 DOM 변수 캐싱
+- const favoritesOverlay = $("#favoritesOverlay");]
+	- 전체 오버레이
+- const favoritesListModal = $("#favoritesListModal");
+	- 즐겨찾기 목록 컨테이너
+- const openFavoritesModalBtn = $("#openFavoritesModal");
+	- 모달 열기 버튼
+- const favoritesCloseBtn = $("#favoritesClose");
+	- 모달 닫기 버튼
+### 즐겨찾기 모달 열고 닫기 함수
+- function openFavoritesModal( ){
+	- buildFavoritesModal( );
+		- 현재 상태 기준 목록 재 빌드
+		- 목록을 매번 새로 그리는 이유는 사용자가 직전에 별을 추가하거나 제거했을 수도 있기 때문에 올바른 상태 반영을 위해서 
+	- if (favoritesOverlay) favoritesOverlay.style.display = "grid"; }
+		- 즐겨찾기 화면이 페이지에 존재하는지 확인한 후
+		- style.display = "grid";을 통해서 display(보여주기) 상태를 grid로 바꿔서 화면에 오버레이를 보이게 함
+		- 평소에는 display: none 으로 숨겨져 있음
+		- 즐겨찾기 화면이 페이지에 존재하는지 확인한 후
+- function closeFavoritesModal( ){
+	- if (favoritesOverlay) favoritesOverlay.style.display = "none"; }
+	- display = "none"으로 화면에서 숨김
+### 즐겨찾기 모달을 구현하는 핵심 함수
+- function buildFavoritesModal( ){
+	- if (!favoritesListModal) return;
+		- 즐겨찾기 목록을 담을 상자가 없으면 함수 종료
+	- favoritesListModal.innerHTML = "";
+		- 새로 즐겨찾기 목록을 그리기 전에 예전에 그려놨던 목록 초기화
+	- const favs = state.docs.filter( (d) => d.starred ).sort( (a,b) => a.title.localeCompare(b.title));
+		- 모든 문서 중에서 d) => d.starred 즉 별표가 true 인것만 필터
+		- 골라낸 것들을 sort로 제목 순대로 정렬
+		- sort(a, b)
+			- a는 비교 대상 첫 번째
+			- b는 비교 대상 두 번째
+			- 둘 중 누가 앞에 와야하는지 물어보는 과정
+		- localeCompare은 사용자의 언어 설정에 맞춰 글자를 비교하겠다는 의미 
+			- 보통 ㄱㄴㄷ, abc 순
+	- 
+	- if (favs.length === 0){
+		- favoritesListModal.innerHTML = `< div class = "muted" style = "padding: 12px"> NO favorites yet < /div>`';
+		- return; }
+			- 위에서 정렬한 문서들의 목록이 0이라면
+			- 즉, 별표 친 문서가 없다면
+			- 즐겨찾기 목록 상자에 div 요소를 만들어서 즐겨찾기가 없다는 글자를 보여주고 함수 종료
+	- 
+	- favs.forEach((doc) => {
+		- const row = el("div", { className: "fav-row"});
+			- 즐겨찾기 한 문서들을 하나씩 순회하면서
+			- 제목, 아이콘, 별 버튼 등을 모두 품게되는 부모 상자 하나 생성
+		- const ico = el("div", {
+			- className: "doc-icon" + (doc-icon ? "has-icon" : "no-icon" 
+			- textContent: doc.icon || "없음", )});
+				- 아이콘 요소를 생성하는데 기본적으로 doc-icon 클래스를 붙이고 
+				- doc-icon에 뭐라도 들어있으면 -> true로 has-icon을 붙이고 아니면 no-icon
+		- const titile = el("div", { textContent: doc.titile, style: "flex:1"});
+			- 문서의 진짜 이름이 적힌 div 상자를 만들고
+			- 모든 공간을 다 차지하라는 flex:1 설정
+		- const acts = el("div", { className: "fav-actions" });
+			- 버튼들을 담아둘 상자 만들기
+		- const unstar = el("div", { className: "icon-btn", title: "unstar", textContent: "빈 별", });
+			- 즐겨찾기 해제 기능을 할 별 모양 버튼
+			- 마우스를 이 별 위에 올리면 unstar라는 작은 도움말 풍선
+
+
+	- unstar.addEventListener("click", (e) => {
+		- 별 모양 버튼을 눌렀을 때 이벤트
+		- e.stopPropagation( );
+		- updateDoc(doc.id, { starred: false } );
+			- 이 문서의 데이터를 찾아서 별표 상태를 거짓으로 바꾸기
+			- 즐겨찾기 취소 기능
+		- if (state.activeId === doc.id) {
+			- 이 문서가 지금 보고 있는 문서라면
+			- const d = findDoc(doc.id);
+				- 바로 위에서 updateDoc으로 데이터를 수정한 그 문서의 최신 상태를 데이터베이스에서 다시 찾아와 d라는 변수에 저장
+			- if (starBtn) starBtn.textContent = d.starred ? "별" : "빈 별";}
+				- 만약 화면에 본문의 별 버튼이 존재하면 
+				- 그 버튼의 데이터가 별표상태가 true면 별
+				- 아니면 빈 별
+			- 즐겨찾기 창에서 한 행동이 본문 화면에도 일치하도록 동기화
+		- renderTrees( );
+			- 사이드 바 목록도 다시 그리기
+		- buildFavoritesModal( ); });
+			- 즐겨찾기 창을 처음부터 다시 그려서 별표를 해제한 문서는 목록에서 사라지게
+	- favs.forEach((doc) => {
+		- row.append(ico, title, acts);
+			- 아까 만든 긴 상자에 아이콘, 제목, 버튼 주머니를 순서대로 넣기
+		- acts.append(unstar);
+			- 버튼 주머니에 별 버튼 넣어주기
+		- row.addEventListener("click", ( ) => {
+			- 그 줄을 클릭했을 때
+			- closeFavoritesModal( );
+				- 즐겨찾기 창 닫기 
+			- navigateTo(doc.id); } );
+				- 클릭한 문서가 있는 페이지로 화면 이동
+			- 
+	- openFavoritesModalBtn?.addEventListener("click", openFavoritesModal);
+		- 즐겨찾기 버튼을 누르면 창을 열고
+	- favoritesCloseBtn?.addEventListener("click", closeFavoritesModal);
+		- 닫기 버튼을 누르면 창을 닫기
+	- favoritesOverlay?.addEventListener("click", (e) => {
+		- if (e.target === favoritesOverlay) closeFavoritesModal( ); } );
+			- 창 바깥의 어두운배경(오버레이)를 클릭하면
+			- 클릭한 지점이 정확히 어두운 배경 부분일 때만 
+			- 즐겨찾기 모달 닫기
+	- document.addEventListener("keydown", (e) => {
+		- ESC키로 닫기
+		- if (favoritesOverlay && favoritesOverlay.style.display === "grid" && e.key === "Escape" ) {
+			- 즐겨찾기 창이 존재하고
+			- 오버레이 창이 열려있는 상태이며
+			- 누른 키가 ESC 키일 때
+			- e.preventDefault( );
+			- closeFavoritesModal( ); } } ); 
+				- 모달 닫기 
+### 열고 닫는 버튼 연결
+- openFavoritesModalBtn?.addEventListener("click", openFavoritesModal);
+	- 즐겨찾기를 여는 버튼이 존재하면 클릭 이벤트를 연결하고 없으면 종료
+- favoritesCloseBtn?.addEventListener("click", closeFavoritesModal);
+	- 즐겨찾기를 닫는 버튼이 존재하면 클릭 이벤트를 연결하고 없으면 종료
+- favoritesOverlay?.addEventListener("click", (e) => {
+	- if (e.target === favoritesOverlay) closeFavoritesModal( ); });
+		- 오버레이 창에도 이벤트 연결
+		- 사용자가 클릭한 그 지점이 정확히 오버레이 창인 경우
+		- 즐겨찾기 모달 닫기
+
+
+- document.addEventListener("keydown", (e) => {
+	- if (favoritesOverlay && favoritesOverlay.style.display === "grid" && e.key === "Escape") {
+		- e.preventDefault( );
+		- closeFavoritesModal( ); } });
+## 검색 오버레이 구현 - 실시간 필터링과 엔터 이동
+- const searchOverlay = $("searchOverlay");
+- const searchInput = $("#searchInput");
+- const searchResults = $("#searchResults");
+	- 검색 결과 컨테이너/ 클릭 가능한 행이 동적으로 추가/ 재랜더링
+- let searchActiveIndex = -1;
+	- 키보드 내비게이션 상태를 기억하는 선택 인덱스(0 기반)
+	- 초기값 -1. 값 변경 시 하이라이트 재 랜더
+- function openSearch( ){
+	- if (searchOverlay & searchInput) {
+		- searchOverlay.style.display = "grid";
+		- searchInput.value = "";
+		- renderSearchResults("");
+			- 모든 결과가 보이는 기본 결과 렌더
+		- searchInput.focus( ); } }
+			- 즉시 포커스
+			- 열자마자 타이핑 누락 방지
+
+- function closeSearch( ){
+	- if (searchOverlay) searchOverlay.style.display = "none";}
+
+- function renderSearchResults(q) {
+	- if (!searchResults) return;
+	- const items = state.docs.filter( (d) => d.title.toLowerCase( ).includes(q.toLowerCase( )));
+	- searchResults.innerHTML = "";
+	- items.forEach((d, i) => {
+		- const row = el("div", { className: "trash-row" } );
+			- 클래스 이름이 trash-row인 이유는 휴지통과 동일 스타일 재사용 
+			- 
+		- row.innerHTML = `< span>${d.icon || "" } ${d.title} < /span>`;
+			- 이모지 아이콘과 제목을 innerHTML로 삽입
+		- row.addEventListener("click", ( ) => {
+			- closeSearch( );
+			- navigateTo(d.id); } );
+		- if (i === searchActiveIndex) row.style.background = "var(--panel-3)";
+		- searchResults.appendChild(row); }); }
+
+- searchInput?.addEventListener("input", ( ) => {
+	- 추가, 삭제, 붙여넣기 등 모든 값 변화가 있을 때
+	- searchActiveIndex = -1;
+		- 이전 하이라이트 초기화
+		- 잘못된 강조 방지
+	- renderSearchResults(searchInput.value); });
+		- 즉시 재랜더
+		- 입력한 값을 포함한 문서 목록 랜더링
+
+- searchInput?.addEventListener("keydown", (e) => {
+	- 검색창에서 키보드가 눌리면 이벤트 시작
+	- const items = searchResults?.children || [];
+		- 검색 결과창 안에 들어있는 자식요소(검색된 항목들)을 모아서 items라고 불러라
+		- 만약 검색 결과가 없다면 빈 배열을 items라고 불러라
+	- if (e.key === "Escape") {
+		-  방금 누른 키가 ESC인가
+		- e.preventDefault( );
+		- closeSearch( ); }
+			- 검색창 즉시 닫기
+	- if (e.key === "ArrowDown") {
+		- 아래 화살표가 눌렸다면
+		- e.preventDefault( );
+		- searchActiveIndex = Math.min(item.length -1, searchActiveIndex + 1 );
+			- 검색 결과 안에 들어있는 자식 요소들(검색된 항목들)의 길이 -1 => 마지막 번호
+			- 현재 선택된 위치(인덱스)에서 한 칸 아래
+			- 둘 중 작은 값 선택해서  searchActiveIndex로
+		- renderSearchResults(searchInput.value);}
+			- 위치가 바뀌었으니 바뀐 위치에 하이라이트를 줘서 다시 랜더링
+	- if (e.key === "ArrowUp") {
+		- e.preventDefault( );
+		- searchActiveIndex = Math.max(0, searchActiveIndex - 1 );
+			- 0번 인덱스
+			- 지금 인덱스보다 -1
+			- 둘 중 큰 값 선택해서  searchActiveIndex 
+		- renderSearchResults(searchInput.value); } 
+	- if (e.key === "Enter") {
+		- e.preventDefault( );
+		- if (items.length && searchActiveIndex >= 0) {
+			-  items.length가 존재하는가 -> 검색 결과 목록에 뭐라도 들어있는가
+			- searchActiveIndex >= 0
+				- 처음 searchActiveIndex는 -1
+				- 그 값이 0보다 크거나 같다는 것은 화살표 키를 눌러 항목 중 하나를 제대로 가리키고 있다는 상태
+			- 두 값을 만족했을 때
+			- items[searchActiveIndex].click( ); }}});
+				- 목록 중에서 searchActiveIndex(지금 화살표로 선택된 번호)의 항목을 선택해 
+				- .click으로 마우스로 클릭한 것과 같은 효과를 내라
+
+- document.addEventListener("keydown", (e) => {
+	- 키보드가 눌린 사건이 발생한다면 
+	- if (searchOverlay && searchOverlay.style.display === "grid" && e.key === "Escape" ) {
+		- 검색창 오버레이가 존재하고
+		- 그 검색창이 실제로 눈에 보이게 열려있는 상태이며
+		- 눌린 키가 ESC라면
+		- e.preventDefault( );
+		- closeSearch( ); } });
+			- 검색창을 닫아라
+
+- searchOverlay?.addEventListener("click", (e) => {
+	- if (e.target === searchOverlay) closeSearch( ); });
+
+- document.querySelectorAll("#actionSearch").forEach(el) => {
+	- el.addEventListener("click", openSearch); });
+		- querySelectorAll로 두 곳의 동일 ID 버튼을 모두 선택
+		- forEach로 순회하며 이벤트 바인딩
+		- 어느 위치의 검색 버튼을 눌러도 같은 openSearch 흐름 실행
+		- 모달 상태 항상 동일하게 초기화
+		- 원칙 적으로 중복 ID는 지양하는게 맞으나 템플릿 제약 등으로 불가피할 땐 이렇게 명시적으로 처리해 예측 가능한 동작 보장
+
+
 
 
 
