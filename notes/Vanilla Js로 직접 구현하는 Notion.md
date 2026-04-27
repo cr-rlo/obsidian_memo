@@ -2690,6 +2690,436 @@
 		- 어느 위치의 검색 버튼을 눌러도 같은 openSearch 흐름 실행
 		- 모달 상태 항상 동일하게 초기화
 		- 원칙 적으로 중복 ID는 지양하는게 맞으나 템플릿 제약 등으로 불가피할 땐 이렇게 명시적으로 처리해 예측 가능한 동작 보장
+## 설정 모달 & 테마 동기화: 열기/ 닫기/ 라이트/ 다크 즉시 적용, 영구 저장
+- const settingOverlay = $("#settingOverlay");
+	- 화면 전체 오버레이 .style.display로 열림, 닫힘 제어
+	- grid로 중앙 정렬된 모달/none으로 완전 숨김
+- const themeToggle = $("themeToggle")// "use light theme"체크 박스
+	- 설정 모달 내부 체크박스(라이트 모드 사용 여부)
+	- 가드 패턴 if로 존재 확인 후 처리
+	- 템플릿 변형, 비동기 초기화로 요소가 없을 때 에러 방지
+
+### 모달을 실제로 여는 함수
+- function openSettings( ){
+	- currentTheme = loadTheme( );
+		- loadTheme호출로 currentTheme갱신 (localStorage)에서 라이트 다크 읽기
+	- if (themeToggle) themeToggle.checked = currentTheme === "light";
+		- 체크박스인 themeToggle이 존재하면 checked 속성을 현재 theme와 동기화
+	- if (settingsOverlay) settingOverlay.style.display = "grid";}
+
+- document.querySelectorAll("#actionSettings").forEach((el) => {
+	- el.addEventListener("click", openSettings);});
+	- 모달을 여는 트리거는 사이드바와 상단 navbar에 각 하나씩 두 개 존재
+### 모달을 닫는 함수들
+- $("#settingsClose")?.addEventListener("click", ( ) => {
+	- if (settingsOverlay) settingsOverlay.style.display = "none";} )
+	- 닫기 버튼 존재 확인 후 처리
+	- 클릭 시 모달 즉시 숨김
+	- 별도 상태 변수 없이 표시 속성만 토글
+- settingsOverlay?,addEventListener("click", (e) => {
+	- if (e.target === settingsOverlay) settingsOverlay.style.display = "none"; });
+	- 외부 클릭 시 닫기 
+	- 내부 클릭 보호: 모달 콘텐츠 클릭은 버블링 돼도 닫히지 않음
+	- 타깃과 리스너 요소 일치 비교로 의도치 않은 닫힘 방지
+- document.addEventListener("keydown", (e) => {
+	- if (settingsOverlay && settingsOverlay.style.display === "grid" && e.key === "Escape") {
+		- e.preventDefault( );
+		- settingsOverlay.style.display = "none";} });
+
+### 라이트 다크 즉시 전환
+- themeToggle?.addEventListener("change", ( ) => {
+	- const next = themeToggle.checked ? "light" : "dark";
+		- 체크돼었을 때 light
+		- 해제돼었을 때 dark
+	- currentTheme = next;
+		- 메모리 동기화
+	- applyTheme(next);
+		- 즉시 적용
+			- < html data-theme = 갱신 -> css 변수로 전역 색상 즉시 전환
+	- saveTheme(next);});
+		- localStorage에 저장
+
+## Export/Import - Blob + URL로 JSON 저장, FileReader로 불러오기 반영
+### export 버튼을 클릭했을 때(내보내기 기능)
+- $("#exportBtn")?.addEventListener("click", ( ) => { 
+	- const data = localStorage.getItem(STORAGE_KEY) || "{ }";
+	- const blob = new Blob([data], { type: "aplication/json" });
+	- const url = URL.createObjectURL(blob);
+	- const a = document.createElement("a");
+	- a.href = url;
+	- a.download = "notion-export.json";
+	- a.click( );
+	- URL.revokeObjectURL(url);});
+
+	- ID가 exportBtn인 버튼을 찾고 있다면 클릭 이벤트 연결
+	- 브라우저 창고(localStorage)에 저장된 우리 앱의 전체 데이터 가져옴
+		- 가져올 때는 문자열 형태, 만약 브라우저 창고가 비어있다면 빈 객체 문자열을 대신 사용
+	- blob은 가상의 파일 덩어리를 만드는 것
+		- new Blob([ ], { type: } )은 브라우저에 내장된 생성자 함수
+		- 메모리 속에 있는 일반적인 텍스트를 컴퓨터 파일 시스템이 이해할 수 있는 이진 데이터 덩어리로 변환
+		- 괄호 안 첫 번째 재료
+			- 반드시 대괄호 [ ]로 감싸 배열 형태로 넣어줘야 함
+			- 이 글자들을 모두 모아서 파일 알맹이로 써줘 라는 의미
+		- 두 번째 재료
+			- { type: }는 이 파일의 파일임을 알려주는 것
+			- 컴퓨터가 이 부분을 보고 메모장으로 열지, 브라우저로 열지 판단
+			- "application/json", "text/html", "image/png" 등이 들어갈 수 있음
+	- URL.createObjectURL(blob);
+		- 컴퓨터 메모리 속에만 존재하는 실체 없는 데이터 덩어리(Blob)에게 임시 주소를 만들어주는 과정
+		- 브라우저가 기본으로 가지고 있는 URL이라는 내장 객체에 소속된 정적 메서드
+		- 메모리에 떠다니는 Blob객체를 가리키는 일회용 URL 생성
+		- 우리가 위에 만든 Blob은 브라우저 메모리에만 잠깐 머물고 있는 데이터라서 주소가 없음 -> 이때 위 메서드를 사용하면 가짜 주소를 발행할 수 있음
+	-  const a = document.createElement("a");
+	- a.href = url;
+	- a.download = "notion-export.json";
+		- 발행한 임시 URL을 가지고 실제로 사용자의 컴퓨터에 파일을 저장시키는 역할
+		- 일단 메모리상에 a 태그(링크 버튼)을 생성함
+		- 아까 만든 URL을 a 링크의 목적지로 설정 -> 링크를 누르면 메모리에 있는 데이터 덩어리로 연결
+		- a.download = "notion-export.json"
+			- a태그가 가신 내장 속성
+			- 원래 링크는 누르면 그 주소로 이동하지만 이 속성이 있으면 브라우저는 이동하지 않고 연결된 데이터를 ""이름으로 다운로드하도록 동작 방식을 바꿈
+	- a.click( );
+		- 모든 HTML 요소가 기본으로 가지고 있는 내장 메서드
+		- 컴퓨터가 사람 대신 이 링크를 눌러줌
+	- URL.revokeObjectURL(url);});
+		- 메모리 관리
+		- 브라우저의 URL 내장 객체에 들어있는 내장 메서드
+		- createObjectURL로 만들었던 임시 주소 파괴
+
+### Import 버튼에서 파일을 클릭했을 때
+- $("importFile")?.addEventListener("change", (e) => {
+	- const file = e.target.files[0];
+	- if (!file) return;
+	- const reader = new FileReader( );
+	- reader.onload = ( ) => {
+		- try {
+			- localStorage.setItem(STORAGE_KEY, reader.result);
+			- load( );
+			- renderTrees( );
+			- renderPage( );
+			- toast("Import complete", "success");}
+		- catch (err) {
+			- toast("Import failed", "error");} };
+		- reader.readAsText(file);})
+	
+	- 사용자가 컴퓨터에 있는 파일을 선택하면 그 내용울 읽어서 앱의 데이터를 통째로 교체하는 로직
+	- $("importFile")?.addEventListener("change", (e) => {
+		- 사용자가 파일 선택 창에서 파일을 고르고 열기를 누르는 순간 발생
+	- e.target.files[0];
+		- input type = "file" 요소가 가진 내장 속성
+		- .files는 브라우저가 input파일 선택기를 통해 들어온 파일들을 담아두는 전용 보관함
+		- 사용자가 파일을 하나만 선택하더라도 브라우저는 이 데이터를 목록 형태로 관리
+		- .files[0] 안에는 파일의 알맹이 뿐만 아니라 파일에 대한 정보들이 들어있음
+			- 이름, 크기, 종류, 마지막으로 수정한 날짜
+		- 사용자가 선택한 파일들의 목록 중 첫 번째 파일을 집어옴
+	-  const reader = new FileReader( );
+		- new FileReader( )는 브라우저에 내장된 생성자 함수
+		- 사용자의 컴퓨터에 있는 파일을 자바스크립트가 읽을 수 있도록 도와주는 객체를 만듦
+		- 웹 브라우저는 보안상 사용자의 컴퓨터 파일을 직접 열어볼 수 없기 때문에 FileReader라는 특수 도구 사용
+	- reader.onload = ( ) => {
+		- .onload로 파일 읽기가 끝나는 순간에 실행
+		- 파일 읽기가 무사히 끝나면 try 실행
+	- try {
+		- localStorage.setItem(STORAGE_KEY, reader.result);
+			- 브라우저 저장소를 열고 파일에서 방금 읽어온 데이터로 내용물을 바꾸기 
+		- load( );
+		- renderTrees( );
+		- renderPage( );
+		- toast("Import complete", "success");}
+	- reader.readAsText(file);})
+		- FileReader 객체가 가진 내장 메서드
+		- 사용자가 선택한 파일을 글자 형식으로 읽기
+
+## confirm 모달 - 메세지 콜백, ESC. 배경 클릭까지
+- 최종 확인을 받기 위한 컨펌 모달
+- const modalOverlay = $("#modalOverlay");
+	- 화면 전체를 덮어 모달 뒤 요소와의 상호작용 차단
+- let modalResolver = null;
+	- 확인 버튼 클릭 시 실행할 콜백을 임시 보관하는 저장소
+
+- function confirmModal(message, onConfirm) {
+	- const t = $("#modalTitle"), 
+		- m = $("#modalMessage");
+	- if (t) t.textContent = "Confirm";
+	- if (m) m.textContent = message;
+	- if (modalOverlay) modalOverlay.style.display = "flex";
+	- modalResolver = onConfirm; }
+
+	- function confirmModal(message, onConfirm) {
+		- message인수는 모달 본문에 표시할 텍스트
+		- onConfirm은 사용자가 확인을 눌렀을 때 실행할 함수
+	-  if (modalOverlay) modalOverlay.style.display = "flex"
+		- 오버레이 노출
+	- modalResolver = onConfirm; }
+		- 확인 버튼이 눌렸을 때 실행될 로직 보관
+		- 예시
+			- confirmModal("이 문서를 정말 삭제하시겠습니끼?', removeDoc)
+			- 확인 시 removeDoc 실행
+
+- $("modalCancle")?.addEventListener("click", ( ) => {
+	- if (modalOverlay) modalOverlay.style.display = "none";
+	- modalResolver = null; });
+
+	- 취소버튼 클릭 -> 모달 닫기, 오버레이 숨김
+	- modalResolver = null; });
+		- modalResolver 초기화
+		- 남은 콜백이 없으므로 아무 동작도 실행되지 않음
+
+- $("#modalConfirm")?.addEventListener("click", ( ) => {
+	- if (modalOverlay) modalOverlay.style.display = "none";
+	- if (modalResolver) modalResolver( );
+	- modalResolver = null; });
+
+	- 확인 버튼 클릭 -> 모달 닫기, 오버레이 숨김
+	-  if (modalResolver) modalResolver( );
+		- modalResolver 실행
+		- 여기에는 컨펌모달 초기에 전달했던 콜백 함수가 들어있으므로 원하는 로직이 그대로 실행
+	- modalResolver = null; });
+		- 실행이 끝나면 null로 초기화해 중복 실행 방지
+		- 
+
+## 키보드 단축키 - 검색, 새 문서, 이름 변경
+- document.addEventListener("keydown", (e) => {
+	- const meta = e.ctrlKey || e.metaKey;
+	- 
+	- if (meta && e.key.toLowerCase( ) === "k") {
+		- e.preventDefault( );
+		- openSearch( );}
+		- 
+	- if (meta && e.altKey && e.key.toLowerCase( ) === "n") {
+		- e.preventDefault( );
+		- const pid = state.activeId || null;
+		- const id = createDoc( { title: "untitled", parentId: pid } );
+		- if (pid) state.expanded[pid] = true;
+		- navigateTo(id); }
+	- if (e.key === "F2" && state.activeId) {
+		- e.preventDefault( );
+		- const row = document.querySelector( 
+			- `.tree-row[data-id = "${state.activeId}"`] );
+	- if (row) {
+		- const label = row.querySelector(".label");
+		- if (label) inlineRename(state.activeId, label); } } });
+
+	- 전역 키 리스너 등록 -> 앱 전역에서 키 입력 감지
+	- keydown으로 키 입력 시 이벤트 실행
+	- 인자로 넘어오는 이벤트 객체 e는 keyboardEvent
+		- 이 객체 안에는 어떤 키가 눌렸는지, 보조키가 눌렸는지
+	-  e.ctrlKey || e.metaKey;
+		- 브라우저 내장 속성
+		- 윈도우의 컨트롤 키나, 맥의 커맨드 키가 눌렸는지 확인
+	- if (meta && e.key.toLowerCase( ) === "k") {
+		- 컨트롤 k가 눌렸는지 확인
+		- openSearch()로 검색창 열기
+	- if (meta && e.altKey && e.key.toLowerCase( ) === "n") {
+		- 컨트롤 알트 n 을 눌렀을 때
+		- const pid = state.activeId || null;
+			- 현재 활성화된 문서의 아이디를 부모 아이디로, 없으면 루트 생성
+		- const id = createDoc( { title: "untitled", parentId: pid } );
+			- 제목은 untitled로, 부모 id는 위에서 설정한 pid로해서 문서 생성
+		- if (pid) state.expanded[pid] = true;
+			- 부모 문서가 존재할 경우 자동으로 펼쳐지도록 상태 조정
+		- navigateTo(id); }
+			- 곧바로 새 문서 페이지로 이동
+	-  if (e.key === "F2" && state.activeId) {
+		- f2키 눌렸을 때
+		- const row = document.querySelector(`.tree-row[data-id="${state.activeId}"]`);
+			- 사이드바는 문서가 한 줄(tree-row)
+			- 클래스 이름이 .tree-row인 녀석들 중에서 찾아라 
+			- 그 중에서도 data-id라는 이름표의 값이 지금 선택한 id와 같은 녀석을 골라라 
+
+## 사이드바 폭 제어 - 접기, 펼치기, 드래그 리사이즈, 반응형 자동 보정
+- collapseBtn?.addEventListener("click", ( ) => {
+	- collapse( );
+	- syncMenuBtnVisibilty( );
+	- });
+
+	- 사이드 바 내부의 접기 버튼
+	- 버튼을 클릭하면 collapse실행
+	- 애니메이션 폭 0으로 축소
+	- writeLastWidth( )로 접기 전 폭 저장 -> 펼칠 때 복원
+	- syncMenuBtnVisibilty( ); 
+		- 햄버거 메뉴 버튼 표시 여부 갱신
+		- 사이드 바 접힘/모바일 -> 버튼 표시
+		- 일반 레이아웃 -> 버튼 숨김
+
+
+- menuBtn?.addEventListener("click", ( ) => {
+	- resetWidth( );
+	- syncMenuBtnVisibility( );
+	- });
+
+	- 네비게이션 바에 있는 햄버거 버튼
+	- resetWidth( ) 실행 -> 사이드 바 펼치기
+	- lastSidebarWidth 있으면 그 값 복원
+	- 없으면 defaultSidebarWidth 적용
+	- 
+
+
+- sidebarPeekBtn?.addEventListener("click", ( ) => {
+	- resetWidth( );
+	- syncMenuBtnVisibility( );});
+
+	- 피크 버튼
+
+### 마우스로 사이드 바 폭을 조절하는 동작
+- let isResizing = false;
+	- 드래그 중인지 여부 판단
+- resizingHandle?.addEventListener("mousedown", (e) => {
+	- if (e.detail === 2) {
+		- e.preventDefault( );
+		- if (sidebar.classList.contains("is-collapsed") {
+			- resetWidth( );
+		- else {
+			- const px = defaultSidebarWidth( );
+			- animateSidebarWidth(px);
+			- writeLastWidth(px); }
+		- isResizing = false;
+		- syncMenuBtnVisibility( );
+		- return;}
+		- is Resizing = true;
+		- e.preventDefault( ); });
+
+	- resizingHandle: 사이드 바 끝에 붙어있는 경계선 요소
+	- mousedown: 마우스 버튼을 꾹 누르는 순간 발생하는 이벤트
+	- if (e.detail === 2) {
+		- 마우스가 연속으로 몇 번 클릭됐는지 알려줌 
+		- 2는 더블클릭
+		- if (sidebar.classList.contains("is-collapsed") { resetWidth( );
+			- 사이드 바 클래스가 is-collpase를 담고 있다면 -> 사이드바가 접혀있다면
+			- resetWidth( );으로 원래대로 되돌려라
+		- else {
+			- 사이드 바가 열려있다면
+			- const px = defaultSidebarWidth( );
+				- 앱이 정한 기본 너비를 가져옴
+			- animateSidebarWidth(px);
+				- 부드러운 애니메이션과 함께 사이드바 너비를 기본값으로 조절
+			- writeLastWidth(px); }
+				- 사용자가 설정한 이 너비를 기억해둠 -> 새로고침해도 유지되도록
+		- is Resizing = true;
+			- 더블클릭이 아니라 마우스로 꾹 누른거라면
+			- e.preventDefault( );
+				- 드래그할 때 글자들도 선택되는 현상 막기
+				- 
+
+- document.addEventListener("mousemove", (e) => {
+	- if (!isResizing) return;
+	- let w = e.clientX;
+		- 브라우저 화면 왼쪽 끝에서 마우스 포인터가지의 가로 거리 
+		- 이게 곧 사이드바의 너비가 됨
+	- if (w < 220) w = 220;
+		- 사이드바의 최소 너비 220px 유지
+	- if (w > 420) w = 420;
+		- 최대 너비 유지
+	- sidebar.classList.remove("is-collapse");
+		- 사용자가 조절을 시작했으니 사이드 바가 열려있는 상태 유지하도록
+	- setSidebarWidth(w);
+		- 계산된 너비를 사이드 바의 css너비값으로 적용 
+		- 화면이 실시간으로 변하는 효과
+	- writeLastWidth(w);});
+		- 새로고침해도 지금의 크기를 유지하도록 저장소에 저장
+- document.addEventListener("mouseup", ( ) => {
+	- isResizing = false; });
+	- 마우스를 놓으면 드래그 종료
+
+- matchMedia("(max-width: 768px)").addEventListener("change", (ev) => {
+	- state.isMobile = ev.matches;
+	- if (state.isMobile) {
+		- collapse( );}
+	- else {
+		- resetWidth( ); }
+	- syncMenuBtnVisibility( ); });
+	- 
+	-  matchMedia("(max-width: 768px)")
+		- 브라우저 뷰포트 폭이 768px 이하일 때를 감지
+		-  ev.matches;
+			- matches 속성이 true면 state.isMobile로 모바일 환경으로 간주
+			-  collapse( );} 로 사이드 바 접기
+	-  else {
+		- 모바일 폭이 아닐 때 -> 데스크탑 폭일 때
+		- resetWidth( ); }로 이전 상태로 복원
+
+
+- if (state.isMobile) {
+	- collapse( ); }
+- else { resetWidth( ); }
+- syncMenuBtnVisibility( );
+
+	- 앱 시작 시 초기 분기 실행
+	- 모바일 환경인지 확인하고 그 값에 따라 sidebar를 접거나 복원
+
+- window.addEventListener("orientationchange", ( ) => {
+	- if (state.isMobile) {
+		- setSidebarWidth(0); } } );
+		
+	- 화면 회전이 발생했을 때
+	- 모바일 환경인지 확인 -> 사이드바 숨기기
+		- 사이드 바 너비를 0으로 만들어서 열려있던 사이드바 닫기
+		- 레이아웃이 갑자기 바뀌지 않도록 사이드 바 폭 고정하는 것
+		- 
+
+-  window.addEventListener("resize", ( ) => {
+	- const vw = window.innerWidth;
+	- if (vw < 768 && !sidebar.classList.contains("is-collapse")) {
+		- collapse( );}
+	- syncMenuBtnVisibility( );});
+
+	- 창 크기가 바뀔 때 실행
+	- const vw = window.innerWidth;
+		- 현재 뷰포트 폭 확인
+	- 뷰포트가 768px 미만이고 사이드 바 펼침 상태면 -> 자동 접기
+	- 모바일 크기에서는 항상 접힌 상태 유지
+
+## 앱 초기화 - 상태 복원, 사이드바/ 휴지통 렌더, 라우팅/ 메뉴 초기화
+- function init( ){
+	- load( );
+	- if (state.isMobile) {
+		- collapse( );}
+	- else {
+		- resetWidth( ); }
+	- renderTrees( );
+	- renderTrash( );
+	- if (!location.hash) {
+		- navigateTo("welcome");}
+	- else {
+		- syncFromLocation( ); }
+	- const id = $("lastEdited");
+	- if (id) id.textContent = new Date( ).toLocaleDateString( );
+	- syncMenuBtnVisibility( ); }
+	- init( );
+
+	- 앱이 처음 켜질 때 딱 한 번 실행되는 초기 설정 마스터 함수
+	- load( );
+		- 앱의 브라우저 저장소를 열어 저장된 데이터를 메모리로 가져옴
+	- if (state.isMobile) {collapse( );}
+		- 모바일 환경인지 확인하고 그렇다면 사이드 바를 접은 상태로 시작함
+	- else { resetWidth( ); }
+		- 모바일 환경이 아니면 원래 설정한 너비로 열기
+	- 사이드바와 휴지통 목록 렌더링
+	- if (!location.hash) {
+		- location.hash 는 브라우저 주소창의 URL 중에서 # 뒤에 붙는 글자들을 말함
+		- 웹 앱에서 이 # 은 현재 내가 어떤 페이지나 문서에 머물고 있는지 알려주는 역할
+		- 만약 그 글자가 없다면 
+		- navigateTo("welcome");}
+			- 앱이 자동으로 welcome 패이지로 이동시킴
+	-  else {
+		- 글자가 있다면 
+		- syncFromLocation( ); }
+			- 이 사람이 예전에 보던 문서가 있으면 그 해당 문서를 바로 열어줌
+	- const id = $("lastEdited");
+		- HTML에서 id가 lastEdited인 요소를 찾아옴
+	- if (id) id.textContent = new Date( ).toLocaleDateString( );
+		- 만약 그 요소가 존재한다면 
+		- 현재 시스템의 날짜와 시간 정보를 생성하여 
+		- 날짜를 그 나라의 형식에 맞게 바꿔줌
+		- 그 값을 위에서 찾은 요소의 텍스트 내용으로 바꿈
+	- syncMenuBtnVisibility( ); }
+		- 사이드바가 열려있는지 닫혀있는지에 따라 메뉴버튼을 보여줄지 말지 최종 확인
+	- init( );
+
+	
+
+
+
 
 
 
