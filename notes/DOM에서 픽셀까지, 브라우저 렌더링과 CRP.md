@@ -326,8 +326,31 @@
 ## Virtual List
 - 가상 리스트
 - 사용자가 보고 있는 영역에 보이는 요소만 DOM으로 만들어서 브라우저에 보여주고, 보이지 않는 요소는 DOM으로 생성하지 않는 기술
-- 
 
+## CSS box-sizing
+- content
+	- 실제 내용 영역
+	- 글자, 이미지 등이 들어가는 공간
+- padding
+	- content와 border 사이의 내부 영역
+- border
+	- 테두리
+- margin
+	- 다른 요소와의 외부 거리
+- Box-Sizing
+	- 기본 값은 content-box
+	- box-sizing: content-box;
+	- 즉, width는 content의 크기만 의미
+	- .box { width: 200px; padding: 20px; border: 5px solid black;}
+		- 이 요소의 실제 크기는
+		- width가 200px이라고 했음에도 실제 화면에서는 250px을 차지함
+- box-sizing: border-box;
+	- 만약 box-sizing을 이렇게 선언하면
+	- width가 전체 크기가 됨
+	- 위 경우와 같은 상황에서
+	- 전체 너비 = 200px으로 맞춰지고
+	- 그 안에서 border 10px padding 40px content   150px 으로 나눠짐
+- 
 
 
 
