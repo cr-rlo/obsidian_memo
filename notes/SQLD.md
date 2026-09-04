@@ -117,4 +117,10 @@
 	- INNER JOIN은 등가 조인뿐아니라 범위 조건 등등도 가능
 	- NATURAL JOIN은 두 테이블에서 이름이 같은 컬럼을 자동으로 찾아 등가조인
 	- USING 절은 두 테이블에서 컬럼명이 서로 다른 경우에도 사용할 수 있다
+- CASE
+	- CASE WHEN ___ = ___ THEN ___ ELSE ___ END 
+	- CASE ___ WHEN __ THEN __ ELSE __ END
+	- CASE WHEN ___ is 사용 불가
+- DECODE( A, B , C , D )
+	- A가 B이면 C 아니면 D
 - 
